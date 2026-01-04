@@ -2,8 +2,16 @@
   "name": "kanban-board",
   "displayName": "Kanban Board",
   "description": "Simple kanban board for TODO management.",
+  "icon": "icon.png",
   "version": "1.0.0",
   "publisher": "te-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tete0123/Kanban-Board.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tete0123/Kanban-Board/issues"
+  },
   "engines": {
     "vscode": "^1.88.0"
   },

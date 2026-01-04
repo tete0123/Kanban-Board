@@ -28,6 +28,11 @@ stored in your workspace and can be versioned with your project.
 
 - `Kanban: Open Board` (`kanban.openBoard`) in the Command Pallete (`ctrl+shift+P`).
 
+## Issues / Feedback
+
+Please report bugs or request features here:
+https://github.com/tete0123/Kanban-Board/issues
+
 ## Data Storage
 
 Data is stored under your workspace:

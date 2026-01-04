@@ -1,0 +1,45 @@
+{
+  "name": "kanban-board",
+  "displayName": "Kanban Board",
+  "description": "Simple kanban board for TODO management.",
+  "version": "1.0.0",
+  "publisher": "te-dev",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "kanban",
+    "board",
+    "agile",
+    "project",
+    "management",
+    "sprint",
+    "productivity",
+    "scrum"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kanban.openBoard",
+        "title": "Kanban: Open Board"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "tsc -p ./",
+    "compile:webview": "tsc -p ./tsconfig.webview.json",
+    "watch": "tsc -watch -p ./",
+    "lint": "echo \"No lint configured\""
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.88.0",
+    "@types/node": "^20.11.30",
+    "typescript": "^5.4.0"
+  }
+}

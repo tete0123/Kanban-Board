@@ -7,7 +7,7 @@ A lightweight Kanban board inside Visual Studio Code for managing TODOs.
 Manage tasks on a Kanban board without leaving VS Code. Columns and cards are
 stored in your workspace and can be versioned with your project.
 
-![Kanban Demo](https://raw.githubusercontent.com/lbauskar/kanban/main/images/demo.gif)
+![Kanban Demo](https://raw.githubusercontent.com/tete0123/Kanban-Board/main/images/demo.gif)
 
 ## Features
 

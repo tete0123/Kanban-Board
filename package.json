@@ -1,6 +1,6 @@
 {
   "name": "kanban-board",
-  "displayName": "Kanban Board",
+  "displayName": "Simple Kanban Board",
   "description": "Simple kanban board for TODO management.",
   "icon": "icon.png",
   "version": "1.0.0",

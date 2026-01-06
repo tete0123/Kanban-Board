@@ -43,11 +43,14 @@
     "compile:extension": "tsc -p ./",
     "compile:webview": "tsc -p ./tsconfig.webview.json",
     "watch": "tsc -watch -p ./",
-    "lint": "echo \"No lint configured\""
+    "lint": "echo \"No lint configured\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/vscode": "^1.88.0",
     "@types/node": "^20.11.30",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
   }
 }

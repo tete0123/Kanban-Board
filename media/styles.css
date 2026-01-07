@@ -156,12 +156,19 @@ body.dialog-open .header h1 {
 .card h3 {
   margin: 0 0 6px;
   font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card p {
   margin: 0 0 8px;
   font-size: 13px;
   color: var(--muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .card .due {

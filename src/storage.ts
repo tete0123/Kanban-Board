@@ -29,22 +29,24 @@ export type FileStat = {
   mtime: number;
 };
 
-export type FileType = {
-  File: number;
+export type FileType = number;
+
+export type FileTypeEnum = {
+  File: FileType;
 };
 
 export type FileSystem<PathType> = {
-  fileType: FileType;
+  fileType: FileTypeEnum;
   joinPath: (base: PathType, ...paths: string[]) => PathType;
-  createDirectory: (path: PathType) => Promise<void>;
-  readFile: (path: PathType) => Promise<Uint8Array>;
-  writeFile: (path: PathType, data: Uint8Array) => Promise<void>;
-  readDirectory: (path: PathType) => Promise<[string, number][]>;
-  stat: (path: PathType) => Promise<FileStat>;
+  createDirectory: (path: PathType) => PromiseLike<void>;
+  readFile: (path: PathType) => PromiseLike<Uint8Array>;
+  writeFile: (path: PathType, data: Uint8Array) => PromiseLike<void>;
+  readDirectory: (path: PathType) => PromiseLike<[string, FileType][]>;
+  stat: (path: PathType) => PromiseLike<FileStat>;
   delete: (
     path: PathType,
     options: { recursive: boolean; useTrash: boolean }
-  ) => Promise<void>;
+  ) => PromiseLike<void>;
 };
 
 type StoragePaths<PathType> = {
@@ -131,7 +133,7 @@ export function createStorage<PathType>(
   const readState = async (): Promise<StatePayload> => {
     const index = await readIndex();
     const { cardsDir } = getStoragePaths();
-    let entries: [string, number][] = [];
+    let entries: [string, FileType][] = [];
     try {
       entries = await fs.readDirectory(cardsDir);
     } catch {

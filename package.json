@@ -28,6 +28,9 @@
     "productivity",
     "scrum"
   ],
+  "activationEvents": [
+    "onCommand:kanban.openBoard"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

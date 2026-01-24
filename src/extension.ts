@@ -65,6 +65,20 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
         <h1>Kanban Board</h1>
         <button class="add-column" id="addColumn">+ Add Column</button>
       </header>
+      <div class="search-widget hidden" id="searchWidget" role="search">
+        <div class="search-input">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search"
+            autocomplete="off"
+          />
+          <span class="search-count" id="searchCount"></span>
+        </div>
+        <button class="search-close" id="searchClose" title="Close">
+          ×
+        </button>
+      </div>
       <main class="board" id="board"></main>
       <div class="dialog-backdrop hidden" id="dialogBackdrop">
         <div class="dialog">

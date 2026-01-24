@@ -28,6 +28,10 @@ const cardDue = document.getElementById("cardDue") as HTMLInputElement;
 const cancelButton = document.getElementById("cancelCard") as HTMLButtonElement;
 const saveButton = document.getElementById("saveCard") as HTMLButtonElement;
 const deleteButton = document.getElementById("deleteCard") as HTMLButtonElement;
+const searchWidget = document.getElementById("searchWidget") as HTMLDivElement;
+const searchInput = document.getElementById("searchInput") as HTMLInputElement;
+const searchCount = document.getElementById("searchCount") as HTMLSpanElement;
+const searchClose = document.getElementById("searchClose") as HTMLButtonElement;
 
 let activeColumn: string | null = null;
 let editingCardId: string | null = null;
@@ -36,6 +40,7 @@ let dragFromColumnId: string | null = null;
 let draggingCardId: string | null = null;
 let editDirty = false;
 let draggingColumnId: string | null = null;
+let searchQuery = "";
 
 const clearDialog = () => {
   cardTitle.value = "";
@@ -85,6 +90,45 @@ const closeDialog = () => {
 };
 
 const isDialogOpen = () => !backdrop.classList.contains("hidden");
+const isSearchOpen = () => !searchWidget.classList.contains("hidden");
+
+const applySearch = (value: string) => {
+  searchQuery = value.trim().toLowerCase();
+  let matches = 0;
+  document.querySelectorAll<HTMLElement>(".card").forEach((card) => {
+    const text = card.dataset.searchText ?? "";
+    if (!searchQuery) {
+      card.classList.remove("search-hidden", "search-match");
+      return;
+    }
+    if (text.includes(searchQuery)) {
+      card.classList.remove("search-hidden");
+      card.classList.add("search-match");
+      matches += 1;
+    } else {
+      card.classList.add("search-hidden");
+      card.classList.remove("search-match");
+    }
+  });
+  if (!searchQuery) {
+    searchCount.textContent = "";
+    return;
+  }
+  searchCount.textContent = `${matches} result${matches === 1 ? "" : "s"}`;
+};
+
+const openSearch = () => {
+  searchWidget.classList.remove("hidden");
+  searchInput.focus();
+  searchInput.select();
+  applySearch(searchInput.value);
+};
+
+const closeSearch = () => {
+  searchWidget.classList.add("hidden");
+  searchInput.value = "";
+  applySearch("");
+};
 
 const renderState = (state: StatePayload) => {
   currentState = state;
@@ -93,6 +137,9 @@ const renderState = (state: StatePayload) => {
     const columnElement = buildColumnElement(column, state);
     board.appendChild(columnElement);
   });
+  if (searchQuery) {
+    applySearch(searchQuery);
+  }
 };
 
 addColumnButton.addEventListener("click", () => {
@@ -186,6 +233,14 @@ deleteButton.addEventListener("click", () => {
     data: { cardId: editingCardId },
   });
   closeDialog();
+});
+
+searchInput.addEventListener("input", () => {
+  applySearch(searchInput.value);
+});
+
+searchClose.addEventListener("click", () => {
+  closeSearch();
 });
 
 [cardTitle, cardDetail, cardDue].forEach((field) => {
@@ -284,6 +339,9 @@ const buildCardElement = (card: CardData) => {
   cardElement.className = "card";
   cardElement.draggable = true;
   cardElement.dataset.cardId = card.id;
+  cardElement.dataset.searchText = `${card.title} ${card.detail} ${
+    card.due ?? ""
+  }`.toLowerCase();
   const detailText = card.detail ? card.detail : "No details";
   const dueText = card.due ? `Due: ${card.due}` : "Due: None";
   cardElement.innerHTML = `
@@ -453,6 +511,19 @@ window.addEventListener("message", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "f" && (event.metaKey || event.ctrlKey)) {
+    if (isDialogOpen()) {
+      return;
+    }
+    event.preventDefault();
+    openSearch();
+    return;
+  }
+  if (event.key === "Escape" && isSearchOpen()) {
+    event.preventDefault();
+    closeSearch();
+    return;
+  }
   if (event.key !== "Escape" || !isDialogOpen()) {
     return;
   }

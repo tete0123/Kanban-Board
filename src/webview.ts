@@ -190,12 +190,12 @@ deleteButton.addEventListener("click", () => {
 
 [cardTitle, cardDetail, cardDue].forEach((field) => {
   field.addEventListener("input", () => {
-    if (editingCardId) {
+    if (isDialogOpen()) {
       editDirty = true;
     }
   });
   field.addEventListener("blur", () => {
-    if (!editingCardId || !editDirty) {
+    if (!isDialogOpen() || !editDirty) {
       return;
     }
     requestAnimationFrame(() => {

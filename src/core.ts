@@ -1,8 +1,10 @@
 export type Column = { id: string; title: string };
+export type Label = { id: string; name: string; color: string };
 
 export type IndexData = {
   columns: Column[];
   order: Record<string, string[]>;
+  labels: Label[];
 };
 
 const DEFAULT_COLUMNS: Column[] = [
@@ -37,7 +39,20 @@ export function normalizeIndex(raw: Partial<IndexData>): IndexData {
     order[column.id] = list;
   });
 
-  return { columns, order };
+  const labels: Label[] = Array.isArray(raw.labels)
+    ? raw.labels
+        .map((label) =>
+          label &&
+          typeof label.id === "string" &&
+          typeof label.name === "string" &&
+          typeof label.color === "string"
+            ? { id: label.id, name: label.name, color: label.color }
+            : null
+        )
+        .filter((label): label is Label => label !== null)
+    : [];
+
+  return { columns, order, labels };
 }
 
 export function parseFrontMatter(content: string): {
@@ -77,7 +92,7 @@ export function serializeFrontMatter(
   meta: Record<string, string | null>,
   body: string
 ): string {
-  const knownKeys = ["id", "title", "due", "createdAt", "updatedAt"];
+  const knownKeys = ["id", "title", "labels", "due", "createdAt", "updatedAt"];
   const lines: string[] = [];
   knownKeys.forEach((key) => {
     if (key in meta) {
@@ -112,6 +127,16 @@ export function ensureUniqueColumnId(columns: Column[], baseId: string): string 
   let candidate = baseId;
   let counter = 1;
   const existing = new Set(columns.map((column) => column.id));
+  while (existing.has(candidate)) {
+    candidate = `${baseId}-${counter++}`;
+  }
+  return candidate;
+}
+
+export function ensureUniqueLabelId(labels: Label[], baseId: string): string {
+  let candidate = baseId;
+  let counter = 1;
+  const existing = new Set(labels.map((label) => label.id));
   while (existing.has(candidate)) {
     candidate = `${baseId}-${counter++}`;
   }

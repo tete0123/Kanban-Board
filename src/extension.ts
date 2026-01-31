@@ -63,7 +63,10 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
     <body>
       <header class="header">
         <h1>Kanban Board</h1>
-        <button class="add-column" id="addColumn">+ Add Column</button>
+        <div class="header-actions">
+          <button class="ghost" id="openLabels">Labels</button>
+          <button class="add-column" id="addColumn">+ Add Column</button>
+        </div>
       </header>
       <div class="search-widget hidden" id="searchWidget" role="search">
         <div class="search-input">
@@ -95,10 +98,62 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
             Due Date
             <input id="cardDue" type="date" />
           </label>
+          <div class="label-section">
+            <div class="label-header">
+              <span>Labels</span>
+              <button id="openLabelManager" type="button">Manage</button>
+            </div>
+            <div id="labelList" class="label-list"></div>
+          </div>
           <div class="dialog-actions">
             <button id="deleteCard" class="danger hidden">Delete</button>
             <button id="cancelCard">Cancel</button>
             <button id="saveCard">Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-backdrop hidden" id="labelBackdrop">
+        <div class="dialog label-dialog">
+          <div class="label-dialog-header">
+            <h2>Labels</h2>
+            <button id="closeLabels" type="button" class="ghost">Close</button>
+          </div>
+          <div class="label-search">
+            <input id="labelSearchInput" type="text" placeholder="Search labels" />
+          </div>
+          <div id="labelManagerList" class="label-manager-list"></div>
+          <div class="label-form">
+            <label>
+              Name
+              <input id="labelName" type="text" placeholder="Label name" />
+            </label>
+            <label>
+              Color
+              <input id="labelColor" type="color" value="#3fb3a2" />
+            </label>
+            <div class="label-form-actions">
+              <button id="labelSave" type="button">Save Label</button>
+              <button id="labelCancel" type="button" class="secondary">
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div class="label-filter-section">
+            <div class="label-filter-header">
+              <span>Filter cards by labels</span>
+              <button id="clearLabelFilter" type="button" class="ghost">Clear</button>
+            </div>
+            <div id="labelFilterList" class="label-filter-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-backdrop hidden" id="confirmBackdrop">
+        <div class="dialog confirm-dialog">
+          <h2 id="confirmTitle">Confirm</h2>
+          <p id="confirmMessage"></p>
+          <div class="dialog-actions">
+            <button id="confirmCancel" class="secondary">Cancel</button>
+            <button id="confirmOk" class="danger">Delete</button>
           </div>
         </div>
       </div>
@@ -157,6 +212,15 @@ async function handleMessage(message: {
     }
     case "kanban:column:delete":
       await storage.deleteColumn(message.data ?? {});
+      return await storage.readState();
+    case "kanban:label:create":
+      await storage.createLabel(message.data ?? {});
+      return await storage.readState();
+    case "kanban:label:update":
+      await storage.updateLabel(message.data ?? {});
+      return await storage.readState();
+    case "kanban:label:delete":
+      await storage.deleteLabel(message.data ?? {});
       return await storage.readState();
     case "kanban:column:delete:request": {
       const columnId =

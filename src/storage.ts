@@ -1,7 +1,9 @@
 import {
   type Column,
+  type Label,
   type IndexData,
   ensureUniqueColumnId,
+  ensureUniqueLabelId,
   firstNonEmptyLine,
   normalizeIndex,
   parseFrontMatter,
@@ -14,6 +16,7 @@ export type CardData = {
   title: string;
   detail: string;
   due: string | null;
+  labels: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -22,6 +25,7 @@ export type StatePayload = {
   columns: Column[];
   order: Record<string, string[]>;
   cards: Record<string, CardData>;
+  labels: Label[];
 };
 
 export type FileStat = {
@@ -94,6 +98,26 @@ export function createStorage<PathType>(
     }
   };
 
+  const parseLabelList = (value: string | null | undefined): string[] => {
+    if (!value || typeof value !== "string") {
+      return [];
+    }
+    const parts = value
+      .split(",")
+      .map((label) => label.trim())
+      .filter((label) => label.length > 0);
+    return Array.from(new Set(parts));
+  };
+
+  const normalizeLabelIds = (value: unknown): string[] => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const ids = value.filter((id) => typeof id === "string");
+    const trimmed = ids.map((id) => id.trim()).filter((id) => id.length > 0);
+    return Array.from(new Set(trimmed));
+  };
+
   const loadCard = async (cardId: string): Promise<CardData | null> => {
     const { cardsDir } = getStoragePaths();
     const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
@@ -117,11 +141,13 @@ export function createStorage<PathType>(
           ? meta.updatedAt
           : new Date(stat.mtime).toISOString();
       const due = typeof meta.due === "string" ? meta.due : null;
+      const labels = parseLabelList(meta.labels ?? null);
       return {
         id: cardId,
         title,
         detail,
         due,
+        labels,
         createdAt,
         updatedAt,
       };
@@ -172,7 +198,7 @@ export function createStorage<PathType>(
     });
 
     if (orderChanged) {
-      await writeIndex({ columns: index.columns, order });
+      await writeIndex({ columns: index.columns, order, labels: index.labels });
     }
 
     const cards: Record<string, CardData> = {};
@@ -190,7 +216,7 @@ export function createStorage<PathType>(
       }
     }
 
-    return { columns: index.columns, order, cards };
+    return { columns: index.columns, order, cards, labels: index.labels };
   };
 
   const createCard = async (data: Record<string, unknown>): Promise<void> => {
@@ -198,6 +224,7 @@ export function createStorage<PathType>(
     const title = typeof data.title === "string" ? data.title : "";
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
+    const labels = normalizeLabelIds(data.labels);
     if (!title.trim()) {
       throw new Error("Title is empty.");
     }
@@ -211,6 +238,7 @@ export function createStorage<PathType>(
     const meta: Record<string, string | null> = {
       id: cardId,
       title: title.trim(),
+      labels: labels.length > 0 ? labels.join(",") : null,
       due: due && due.trim() ? due : null,
       createdAt: now,
       updatedAt: now,
@@ -232,6 +260,7 @@ export function createStorage<PathType>(
     const title = typeof data.title === "string" ? data.title : "";
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
+    const labels = normalizeLabelIds(data.labels);
     if (!title.trim()) {
       throw new Error("Title is empty.");
     }
@@ -248,6 +277,7 @@ export function createStorage<PathType>(
     const meta = { ...parsed.meta };
     meta.id = cardId;
     meta.title = title.trim();
+    meta.labels = labels.length > 0 ? labels.join(",") : null;
     meta.due = due && due.trim() ? due : null;
     meta.createdAt =
       typeof meta.createdAt === "string" && meta.createdAt
@@ -394,6 +424,111 @@ export function createStorage<PathType>(
     }
   };
 
+  const listCardIds = async (): Promise<string[]> => {
+    const { cardsDir } = getStoragePaths();
+    let entries: [string, FileType][] = [];
+    try {
+      entries = await fs.readDirectory(cardsDir);
+    } catch {
+      entries = [];
+    }
+    return entries
+      .filter((entry) => entry[1] === fs.fileType.File)
+      .map((entry) => entry[0])
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => name.replace(/\.md$/, ""));
+  };
+
+  const updateCardLabels = async (
+    cardId: string,
+    updater: (labels: string[]) => string[]
+  ): Promise<void> => {
+    const { cardsDir } = getStoragePaths();
+    const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
+    let parsed = { meta: {} as Record<string, string | null>, body: "" };
+    try {
+      const content = await fs.readFile(cardFile);
+      parsed = parseFrontMatter(Buffer.from(content).toString("utf8"));
+    } catch {
+      return;
+    }
+    const current = parseLabelList(parsed.meta.labels ?? null);
+    const next = updater(current);
+    const nextValue = next.length > 0 ? next.join(",") : null;
+    if ((parsed.meta.labels ?? null) === nextValue) {
+      return;
+    }
+    const meta: Record<string, string | null> = {
+      ...parsed.meta,
+      labels: nextValue,
+    };
+    meta.updatedAt = new Date().toISOString();
+    const content = serializeFrontMatter(meta, parsed.body);
+    await fs.writeFile(cardFile, Buffer.from(content, "utf8"));
+  };
+
+  const createLabel = async (data: Record<string, unknown>): Promise<void> => {
+    const name = typeof data.name === "string" ? data.name : "";
+    const color = typeof data.color === "string" ? data.color : "";
+    if (!name.trim()) {
+      throw new Error("Label name is empty.");
+    }
+    if (!color.trim()) {
+      throw new Error("Label color is empty.");
+    }
+    const index = await readIndex();
+    const baseId = slugify(name.trim());
+    const labelId = ensureUniqueLabelId(index.labels, baseId);
+    index.labels.push({ id: labelId, name: name.trim(), color: color.trim() });
+    await writeIndex(index);
+  };
+
+  const updateLabel = async (data: Record<string, unknown>): Promise<void> => {
+    const labelId = typeof data.labelId === "string" ? data.labelId : null;
+    const name = typeof data.name === "string" ? data.name : "";
+    const color = typeof data.color === "string" ? data.color : "";
+    if (!labelId || !name.trim() || !color.trim()) {
+      throw new Error("Missing label information.");
+    }
+    const index = await readIndex();
+    const label = index.labels.find((item) => item.id === labelId);
+    if (!label) {
+      throw new Error("Label not found.");
+    }
+    const previousName = label.name;
+    label.name = name.trim();
+    label.color = color.trim();
+    await writeIndex(index);
+    if (previousName !== label.name) {
+      const cardIds = await listCardIds();
+      for (const cardId of cardIds) {
+        await updateCardLabels(cardId, (labels) =>
+          labels.map((value) => (value === previousName ? labelId : value))
+        );
+      }
+    }
+  };
+
+  const deleteLabel = async (data: Record<string, unknown>): Promise<void> => {
+    const labelId = typeof data.labelId === "string" ? data.labelId : null;
+    if (!labelId) {
+      throw new Error("Missing label ID.");
+    }
+    const index = await readIndex();
+    const nextLabels = index.labels.filter((label) => label.id !== labelId);
+    if (nextLabels.length === index.labels.length) {
+      throw new Error("Label not found.");
+    }
+    index.labels = nextLabels;
+    await writeIndex(index);
+    const cardIds = await listCardIds();
+    for (const cardId of cardIds) {
+      await updateCardLabels(cardId, (labels) =>
+        labels.filter((id) => id !== labelId)
+      );
+    }
+  };
+
   return {
     readState,
     createCard,
@@ -405,6 +540,9 @@ export function createStorage<PathType>(
     reorderColumns,
     createColumn,
     deleteColumn,
+    createLabel,
+    updateLabel,
+    deleteLabel,
   };
 }
 

@@ -7,19 +7,30 @@ type CardData = {
   title: string;
   detail: string;
   due: string | null;
+  labels: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+type Label = {
+  id: string;
+  name: string;
+  color: string;
 };
 
 type StatePayload = {
   columns: { id: string; title: string }[];
   order: Record<string, string[]>;
   cards: Record<string, CardData>;
+  labels: Label[];
 };
 
 const vscode = acquireVsCodeApi();
 const board = document.getElementById("board") as HTMLDivElement;
 const addColumnButton = document.getElementById("addColumn") as HTMLButtonElement;
+const openLabelsButton = document.getElementById(
+  "openLabels"
+) as HTMLButtonElement;
 const backdrop = document.getElementById("dialogBackdrop") as HTMLDivElement;
 const dialogTitle = document.getElementById("dialogTitle") as HTMLHeadingElement;
 const cardTitle = document.getElementById("cardTitle") as HTMLInputElement;
@@ -32,6 +43,43 @@ const searchWidget = document.getElementById("searchWidget") as HTMLDivElement;
 const searchInput = document.getElementById("searchInput") as HTMLInputElement;
 const searchCount = document.getElementById("searchCount") as HTMLSpanElement;
 const searchClose = document.getElementById("searchClose") as HTMLButtonElement;
+const labelList = document.getElementById("labelList") as HTMLDivElement;
+const openLabelManager = document.getElementById(
+  "openLabelManager"
+) as HTMLButtonElement;
+const labelBackdrop = document.getElementById(
+  "labelBackdrop"
+) as HTMLDivElement;
+const confirmBackdrop = document.getElementById(
+  "confirmBackdrop"
+) as HTMLDivElement;
+const confirmTitle = document.getElementById("confirmTitle") as HTMLHeadingElement;
+const confirmMessage = document.getElementById(
+  "confirmMessage"
+) as HTMLParagraphElement;
+const confirmOk = document.getElementById("confirmOk") as HTMLButtonElement;
+const confirmCancel = document.getElementById(
+  "confirmCancel"
+) as HTMLButtonElement;
+const closeLabelsButton = document.getElementById(
+  "closeLabels"
+) as HTMLButtonElement;
+const labelSearchInput = document.getElementById(
+  "labelSearchInput"
+) as HTMLInputElement;
+const labelManagerList = document.getElementById(
+  "labelManagerList"
+) as HTMLDivElement;
+const labelFilterList = document.getElementById(
+  "labelFilterList"
+) as HTMLDivElement;
+const clearLabelFilter = document.getElementById(
+  "clearLabelFilter"
+) as HTMLButtonElement;
+const labelName = document.getElementById("labelName") as HTMLInputElement;
+const labelColor = document.getElementById("labelColor") as HTMLInputElement;
+const labelSave = document.getElementById("labelSave") as HTMLButtonElement;
+const labelCancel = document.getElementById("labelCancel") as HTMLButtonElement;
 
 let activeColumn: string | null = null;
 let editingCardId: string | null = null;
@@ -43,6 +91,10 @@ let draggingColumnId: string | null = null;
 let searchQuery = "";
 let autoScrollRaf: number | null = null;
 let lastPointer: { x: number; y: number } | null = null;
+let dialogLabelIds: string[] = [];
+let editingLabelId: string | null = null;
+let labelFilterIds: string[] = [];
+let confirmAction: (() => void) | null = null;
 
 const AUTO_SCROLL_MARGIN = 60;
 const AUTO_SCROLL_SPEED = 18;
@@ -109,16 +161,49 @@ const clearDialog = () => {
   cardDue.value = "";
 };
 
+const isLabelManagerOpen = () => !labelBackdrop.classList.contains("hidden");
+const isConfirmOpen = () => !confirmBackdrop.classList.contains("hidden");
+
+const openConfirm = (message: string, action: () => void) => {
+  confirmTitle.textContent = "Confirm";
+  confirmMessage.textContent = message;
+  confirmAction = action;
+  confirmBackdrop.classList.remove("hidden");
+  confirmOk.focus();
+};
+
+const closeConfirm = () => {
+  confirmBackdrop.classList.add("hidden");
+  confirmAction = null;
+};
+
+const openLabelManagerModal = () => {
+  labelBackdrop.classList.remove("hidden");
+  document.body.classList.add("label-open");
+  labelSearchInput.focus();
+  renderLabelManager();
+  renderLabelFilterList();
+};
+
+const closeLabelManagerModal = () => {
+  labelBackdrop.classList.add("hidden");
+  document.body.classList.remove("label-open");
+  labelSearchInput.value = "";
+  resetLabelForm();
+};
+
 const openCreateDialog = (column: string) => {
   activeColumn = column;
   editingCardId = null;
   editDirty = false;
+  dialogLabelIds = [];
   dialogTitle.textContent = "Add Card";
   saveButton.textContent = "Save";
   deleteButton.classList.add("hidden");
   document.body.classList.add("dialog-open");
   backdrop.classList.remove("hidden");
   cardTitle.focus();
+  renderLabelList();
 };
 
 const openEditDialog = (cardId: string) => {
@@ -129,6 +214,7 @@ const openEditDialog = (cardId: string) => {
   activeColumn = null;
   editingCardId = cardId;
   editDirty = false;
+  dialogLabelIds = [...card.labels];
   dialogTitle.textContent = "Edit Card";
   saveButton.textContent = "Update";
   deleteButton.classList.remove("hidden");
@@ -138,6 +224,7 @@ const openEditDialog = (cardId: string) => {
   cardDue.value = card.due ?? "";
   backdrop.classList.remove("hidden");
   cardTitle.focus();
+  renderLabelList();
 };
 
 const closeDialog = () => {
@@ -148,10 +235,32 @@ const closeDialog = () => {
   deleteButton.classList.add("hidden");
   document.body.classList.remove("dialog-open");
   clearDialog();
+  resetLabelForm();
 };
 
 const isDialogOpen = () => !backdrop.classList.contains("hidden");
 const isSearchOpen = () => !searchWidget.classList.contains("hidden");
+
+const applyLabelFilter = () => {
+  const activeFilters = new Set(labelFilterIds);
+  document.querySelectorAll<HTMLElement>(".card").forEach((card) => {
+    const raw = card.dataset.labels ?? "";
+    if (activeFilters.size === 0) {
+      card.classList.remove("label-filter-hidden");
+      return;
+    }
+    const cardLabels = raw
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+    const matches = cardLabels.some((id) => activeFilters.has(id));
+    if (matches) {
+      card.classList.remove("label-filter-hidden");
+    } else {
+      card.classList.add("label-filter-hidden");
+    }
+  });
+};
 
 const applySearch = (value: string) => {
   searchQuery = value.trim().toLowerCase();
@@ -191,20 +300,167 @@ const closeSearch = () => {
   applySearch("");
 };
 
+const syncDialogLabels = (labels: Label[]) => {
+  const allowed = new Set(labels.map((label) => label.id));
+  dialogLabelIds = dialogLabelIds.filter((id) => allowed.has(id));
+  labelFilterIds = labelFilterIds.filter((id) => allowed.has(id));
+};
+
+const resetLabelForm = () => {
+  editingLabelId = null;
+  labelName.value = "";
+  labelColor.value = "#3fb3a2";
+  labelSave.textContent = "Save Label";
+};
+
+const renderLabelList = () => {
+  if (!labelList) {
+    return;
+  }
+  labelList.innerHTML = "";
+  const labels = currentState?.labels ?? [];
+  const selected = new Set(dialogLabelIds);
+  labels.forEach((label) => {
+    const row = document.createElement("div");
+    row.className = "label-row label-row-simple";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selected.has(label.id);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selected.add(label.id);
+      } else {
+        selected.delete(label.id);
+      }
+      dialogLabelIds = Array.from(selected);
+    });
+
+    const swatch = document.createElement("span");
+    swatch.className = "label-swatch";
+    swatch.style.backgroundColor = label.color;
+
+    const name = document.createElement("span");
+    name.className = "label-name";
+    name.textContent = label.name;
+
+    row.appendChild(checkbox);
+    row.appendChild(swatch);
+    row.appendChild(name);
+    labelList.appendChild(row);
+  });
+};
+
+const renderLabelManager = () => {
+  if (!labelManagerList) {
+    return;
+  }
+  const query = labelSearchInput.value.trim().toLowerCase();
+  labelManagerList.innerHTML = "";
+  const labels = currentState?.labels ?? [];
+  labels
+    .filter((label) => label.name.toLowerCase().includes(query))
+    .forEach((label) => {
+      const row = document.createElement("div");
+      row.className = "label-row label-row-manager";
+
+      const swatch = document.createElement("span");
+      swatch.className = "label-swatch";
+      swatch.style.backgroundColor = label.color;
+
+      const name = document.createElement("span");
+      name.className = "label-name";
+      name.textContent = label.name;
+
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "label-edit";
+      editButton.textContent = "Edit";
+      editButton.dataset.action = "edit";
+      editButton.dataset.labelId = label.id;
+
+      const deleteLabelButton = document.createElement("button");
+      deleteLabelButton.type = "button";
+      deleteLabelButton.className = "label-delete";
+      deleteLabelButton.textContent = "Delete";
+      deleteLabelButton.dataset.action = "delete";
+      deleteLabelButton.dataset.labelId = label.id;
+
+      row.appendChild(swatch);
+      row.appendChild(name);
+      row.appendChild(editButton);
+      row.appendChild(deleteLabelButton);
+      labelManagerList.appendChild(row);
+    });
+};
+
+const renderLabelFilterList = () => {
+  if (!labelFilterList) {
+    return;
+  }
+  labelFilterList.innerHTML = "";
+  const labels = currentState?.labels ?? [];
+  const selected = new Set(labelFilterIds);
+  labels.forEach((label) => {
+    const row = document.createElement("div");
+    row.className = "label-row label-row-filter";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selected.has(label.id);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selected.add(label.id);
+      } else {
+        selected.delete(label.id);
+      }
+      labelFilterIds = Array.from(selected);
+      applyLabelFilter();
+    });
+
+    const swatch = document.createElement("span");
+    swatch.className = "label-swatch";
+    swatch.style.backgroundColor = label.color;
+
+    const name = document.createElement("span");
+    name.className = "label-name";
+    name.textContent = label.name;
+
+    row.appendChild(checkbox);
+    row.appendChild(swatch);
+    row.appendChild(name);
+    labelFilterList.appendChild(row);
+  });
+};
+
 const renderState = (state: StatePayload) => {
   currentState = state;
   board.innerHTML = "";
+  const labelMap = new Map(state.labels.map((label) => [label.id, label]));
   state.columns.forEach((column) => {
-    const columnElement = buildColumnElement(column, state);
+    const columnElement = buildColumnElement(column, state, labelMap);
     board.appendChild(columnElement);
   });
+  syncDialogLabels(state.labels);
+  renderLabelList();
+  renderLabelManager();
+  renderLabelFilterList();
   if (searchQuery) {
     applySearch(searchQuery);
   }
+  applyLabelFilter();
 };
 
 addColumnButton.addEventListener("click", () => {
   vscode.postMessage({ type: "kanban:column:create:request" });
+});
+
+openLabelsButton.addEventListener("click", () => {
+  openLabelManagerModal();
+});
+
+openLabelManager.addEventListener("click", () => {
+  openLabelManagerModal();
 });
 
 board.addEventListener("dragover", (event) => {
@@ -248,6 +504,33 @@ backdrop.addEventListener("click", (event) => {
   }
 });
 
+labelBackdrop.addEventListener("click", (event) => {
+  if (event.target === labelBackdrop) {
+    closeLabelManagerModal();
+  }
+});
+
+confirmBackdrop.addEventListener("click", (event) => {
+  if (event.target === confirmBackdrop) {
+    closeConfirm();
+  }
+});
+
+confirmCancel.addEventListener("click", () => {
+  closeConfirm();
+});
+
+confirmOk.addEventListener("click", () => {
+  if (confirmAction) {
+    confirmAction();
+  }
+  closeConfirm();
+});
+
+closeLabelsButton.addEventListener("click", () => {
+  closeLabelManagerModal();
+});
+
 saveButton.addEventListener("click", () => {
   const title = cardTitle.value.trim();
   const detail = cardDetail.value.trim();
@@ -266,6 +549,7 @@ saveButton.addEventListener("click", () => {
         title,
         detail,
         due: due || null,
+        labels: dialogLabelIds,
       },
     });
     closeDialog();
@@ -282,6 +566,7 @@ saveButton.addEventListener("click", () => {
       title,
       detail,
       due: due || null,
+      labels: dialogLabelIds,
     },
   });
   closeDialog();
@@ -304,6 +589,82 @@ searchInput.addEventListener("input", () => {
 
 searchClose.addEventListener("click", () => {
   closeSearch();
+});
+
+labelCancel.addEventListener("click", () => {
+  resetLabelForm();
+});
+
+labelSave.addEventListener("click", () => {
+  const name = labelName.value.trim();
+  const color = labelColor.value.trim();
+  if (!name) {
+    labelName.focus();
+    return;
+  }
+  if (!color) {
+    labelColor.focus();
+    return;
+  }
+  if (editingLabelId) {
+    vscode.postMessage({
+      type: "kanban:label:update",
+      data: { labelId: editingLabelId, name, color },
+    });
+  } else {
+    vscode.postMessage({
+      type: "kanban:label:create",
+      data: { name, color },
+    });
+  }
+  resetLabelForm();
+});
+
+labelSearchInput.addEventListener("input", () => {
+  renderLabelManager();
+});
+
+labelManagerList.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement | null;
+  const button = target?.closest<HTMLButtonElement>("button[data-action]");
+  if (!button) {
+    return;
+  }
+  const labelId = button.dataset.labelId ?? null;
+  if (!labelId) {
+    return;
+  }
+  const labels = currentState?.labels ?? [];
+  const label = labels.find((item) => item.id === labelId);
+  if (!label) {
+    return;
+  }
+  const action = button.dataset.action;
+  if (action === "edit") {
+    editingLabelId = label.id;
+    labelName.value = label.name;
+    labelColor.value = label.color;
+    labelSave.textContent = "Update Label";
+    labelName.focus();
+    return;
+  }
+  if (action === "delete") {
+    openConfirm("Delete this label?", () => {
+      vscode.postMessage({
+        type: "kanban:label:delete",
+        data: { labelId: label.id },
+      });
+      if (editingLabelId === label.id) {
+        resetLabelForm();
+      }
+    });
+  }
+});
+
+clearLabelFilter.addEventListener("click", () => {
+  labelFilterIds = [];
+  renderLabelFilterList();
+  applyLabelFilter();
 });
 
 [cardTitle, cardDetail, cardDue].forEach((field) => {
@@ -398,21 +759,45 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const buildCardElement = (card: CardData) => {
+const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
   const cardElement = document.createElement("article");
   cardElement.className = "card";
   cardElement.draggable = true;
   cardElement.dataset.cardId = card.id;
+  cardElement.dataset.labels = card.labels.join(",");
+  const labels = card.labels
+    .map((id) => labelMap.get(id))
+    .filter((label): label is Label => Boolean(label));
+  const labelText = labels.map((label) => label.name).join(" ");
   cardElement.dataset.searchText = `${card.title} ${card.detail} ${
     card.due ?? ""
-  }`.toLowerCase();
-  const detailText = card.detail ? card.detail : "No details";
-  const dueText = card.due ? `Due: ${card.due}` : "Due: None";
-  cardElement.innerHTML = `
-      <h3>${escapeHtml(card.title)}</h3>
-      <p>${escapeHtml(detailText)}</p>
-      <div class="due">${escapeHtml(dueText)}</div>
-    `;
+  } ${labelText}`.toLowerCase();
+  if (labels.length > 0) {
+    const labelsContainer = document.createElement("div");
+    labelsContainer.className = "card-labels";
+    labels.forEach((label) => {
+      const chip = document.createElement("span");
+      chip.className = "card-label";
+      chip.textContent = label.name;
+      chip.style.backgroundColor = label.color;
+      labelsContainer.appendChild(chip);
+    });
+    cardElement.appendChild(labelsContainer);
+  }
+
+  const title = document.createElement("h3");
+  title.textContent = card.title;
+  cardElement.appendChild(title);
+
+  const detail = document.createElement("p");
+  detail.textContent = card.detail ? card.detail : "No details";
+  cardElement.appendChild(detail);
+
+  const due = document.createElement("div");
+  due.className = "due";
+  due.textContent = card.due ? `Due: ${card.due}` : "Due: None";
+  cardElement.appendChild(due);
+
   cardElement.addEventListener("dblclick", () => {
     openEditDialog(card.id);
   });
@@ -421,7 +806,8 @@ const buildCardElement = (card: CardData) => {
 
 const buildColumnElement = (
   column: { id: string; title: string },
-  state: StatePayload
+  state: StatePayload,
+  labelMap: Map<string, Label>
 ) => {
   const columnElement = document.createElement("section");
   columnElement.className = "column";
@@ -551,7 +937,7 @@ const buildColumnElement = (
     if (!card) {
       return;
     }
-    list.appendChild(buildCardElement(card));
+    list.appendChild(buildCardElement(card, labelMap));
   });
 
   columnElement.appendChild(header);
@@ -589,6 +975,16 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isSearchOpen()) {
     event.preventDefault();
     closeSearch();
+    return;
+  }
+  if (event.key === "Escape" && isLabelManagerOpen()) {
+    event.preventDefault();
+    closeLabelManagerModal();
+    return;
+  }
+  if (event.key === "Escape" && isConfirmOpen()) {
+    event.preventDefault();
+    closeConfirm();
     return;
   }
   if (event.key !== "Escape" || !isDialogOpen()) {

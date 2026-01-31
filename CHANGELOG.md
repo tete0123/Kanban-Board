@@ -13,3 +13,5 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.3] - 2026-01-31
 - Auto-scroll while dragging cards to reach off-screen lists
+- Added label management with colors, card label chips, and filtering
+- Moved label search/create/edit/delete into a dedicated modal with confirmation

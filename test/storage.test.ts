@@ -119,4 +119,33 @@ describe("storage with in-memory fs", () => {
     expect(state.order.todo).toEqual([]);
     expect(Object.keys(state.cards)).toEqual([]);
   });
+
+  it("manages labels and removes deleted labels from cards", async () => {
+    const fs = createInMemoryFileSystem();
+    const storage = createStorage(fs, "/workspace");
+
+    await storage.createLabel({ name: "Bug", color: "#ff0000" });
+    let state = await storage.readState();
+    expect(state.labels.length).toBe(1);
+    const labelId = state.labels[0]?.id;
+    expect(labelId).toBeTruthy();
+
+    await storage.createCard({
+      title: "Fix issue",
+      detail: "Details",
+      labels: [labelId],
+    });
+    state = await storage.readState();
+    const [cardId] = Object.keys(state.cards);
+    expect(state.cards[cardId].labels).toEqual([labelId]);
+
+    await storage.updateLabel({ labelId, name: "Bugfix", color: "#00ff00" });
+    state = await storage.readState();
+    expect(state.labels[0].name).toBe("Bugfix");
+
+    await storage.deleteLabel({ labelId });
+    state = await storage.readState();
+    expect(state.labels).toEqual([]);
+    expect(state.cards[cardId].labels).toEqual([]);
+  });
 });

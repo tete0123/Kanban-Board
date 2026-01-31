@@ -576,11 +576,13 @@ deleteButton.addEventListener("click", () => {
   if (!editingCardId) {
     return;
   }
-  vscode.postMessage({
-    type: "kanban:card:delete",
-    data: { cardId: editingCardId },
+  openConfirm("Delete this card?", () => {
+    vscode.postMessage({
+      type: "kanban:card:delete",
+      data: { cardId: editingCardId },
+    });
+    closeDialog();
   });
-  closeDialog();
 });
 
 searchInput.addEventListener("input", () => {

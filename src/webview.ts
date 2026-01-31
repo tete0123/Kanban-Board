@@ -41,6 +41,67 @@ let draggingCardId: string | null = null;
 let editDirty = false;
 let draggingColumnId: string | null = null;
 let searchQuery = "";
+let autoScrollRaf: number | null = null;
+let lastPointer: { x: number; y: number } | null = null;
+
+const AUTO_SCROLL_MARGIN = 60;
+const AUTO_SCROLL_SPEED = 18;
+
+const requestAutoScroll = (x: number, y: number) => {
+  lastPointer = { x, y };
+  if (autoScrollRaf !== null) {
+    return;
+  }
+  const step = () => {
+    if (!lastPointer || (!draggingCardId && !draggingColumnId)) {
+      autoScrollRaf = null;
+      return;
+    }
+    const { x: pointerX, y: pointerY } = lastPointer;
+    let deltaX = 0;
+    let deltaY = 0;
+    if (pointerX < AUTO_SCROLL_MARGIN) {
+      deltaX = -AUTO_SCROLL_SPEED;
+    } else if (pointerX > window.innerWidth - AUTO_SCROLL_MARGIN) {
+      deltaX = AUTO_SCROLL_SPEED;
+    }
+    if (pointerY < AUTO_SCROLL_MARGIN) {
+      deltaY = -AUTO_SCROLL_SPEED;
+    } else if (pointerY > window.innerHeight - AUTO_SCROLL_MARGIN) {
+      deltaY = AUTO_SCROLL_SPEED;
+    }
+    if (deltaX !== 0 || deltaY !== 0) {
+      window.scrollBy(deltaX, deltaY);
+    }
+    autoScrollRaf = requestAnimationFrame(step);
+  };
+  autoScrollRaf = requestAnimationFrame(step);
+};
+
+const stopAutoScroll = () => {
+  if (autoScrollRaf !== null) {
+    cancelAnimationFrame(autoScrollRaf);
+    autoScrollRaf = null;
+  }
+  lastPointer = null;
+};
+
+const autoScrollList = (list: HTMLElement, clientY: number) => {
+  if (list.scrollHeight <= list.clientHeight) {
+    return;
+  }
+  const rect = list.getBoundingClientRect();
+  const topZone = rect.top + AUTO_SCROLL_MARGIN;
+  const bottomZone = rect.bottom - AUTO_SCROLL_MARGIN;
+  if (clientY < topZone) {
+    list.scrollTop = Math.max(0, list.scrollTop - AUTO_SCROLL_SPEED);
+  } else if (clientY > bottomZone) {
+    list.scrollTop = Math.min(
+      list.scrollHeight - list.clientHeight,
+      list.scrollTop + AUTO_SCROLL_SPEED
+    );
+  }
+};
 
 const clearDialog = () => {
   cardTitle.value = "";
@@ -151,6 +212,7 @@ board.addEventListener("dragover", (event) => {
     return;
   }
   event.preventDefault();
+  requestAutoScroll(event.clientX, event.clientY);
   const after = getColumnAfterElement(board, event.clientX);
   const dragged = document.querySelector<HTMLElement>(".column.dragging");
   if (dragged) {
@@ -172,6 +234,7 @@ board.addEventListener("drop", () => {
     .map((column) => column.dataset.column)
     .filter((id): id is string => Boolean(id));
   draggingColumnId = null;
+  stopAutoScroll();
   vscode.postMessage({
     type: "kanban:column:reorder",
     data: { orderedIds },
@@ -281,6 +344,7 @@ document.addEventListener("dragend", (event) => {
   target.classList.remove("dragging");
   draggingCardId = null;
   dragFromColumnId = null;
+  stopAutoScroll();
   document.querySelectorAll(".card-list").forEach((list) => {
     list.classList.remove("drop-target");
   });
@@ -403,6 +467,7 @@ const buildColumnElement = (
   handleButton.addEventListener("dragend", () => {
     draggingColumnId = null;
     columnElement.classList.remove("dragging");
+    stopAutoScroll();
   });
 
   const deleteButton = document.createElement("button");
@@ -434,6 +499,8 @@ const buildColumnElement = (
   list.addEventListener("dragover", (event) => {
     event.preventDefault();
     list.classList.add("drop-target");
+    requestAutoScroll(event.clientX, event.clientY);
+    autoScrollList(list, event.clientY);
     const after = getDragAfterElement(list, event.clientY);
     const dragged = document.querySelector<HTMLElement>(".card.dragging");
     if (dragged) {

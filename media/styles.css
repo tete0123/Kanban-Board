@@ -246,6 +246,23 @@ body.dialog-open .search-widget {
   font-weight: 600;
 }
 
+.card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-open-file {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
 .card .due.due-overdue {
   color: #ff5f5f;
 }
@@ -539,6 +556,11 @@ body.label-open #dialogBackdrop {
   border-radius: 10px;
   padding: 8px 14px;
   cursor: pointer;
+}
+
+.dialog-actions .secondary {
+  background: #2a2f3a;
+  color: var(--text);
 }
 
 .dialog-actions .danger {

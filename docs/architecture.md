@@ -9,6 +9,7 @@
   - Registers command `kanban.openBoard` and creates a webview panel.
   - Builds webview HTML and wires message handling.
   - Routes webview messages to storage operations and returns updated state.
+  - Handles `kanban:card:openFile` to open `.vscode-kanban/cards/<cardId>.md` in VS Code editor.
 - `src/storage.ts`
   - Encapsulates filesystem layout and all CRUD operations.
   - Normalizes and repairs state if files drift from the index.
@@ -17,6 +18,8 @@
 - `src/webview.ts`
   - DOM rendering, drag-and-drop, dialogs, search.
   - Sends message events and applies new state.
+  - Provides "Open" / "Open .md" actions to open a card markdown file in editor.
+  - Re-fetches state on focus/visibility restore to reflect external file edits.
 
 ## Data flow
 ```
@@ -34,6 +37,7 @@ Webview -> Extension
 - `kanban:card:delete`
 - `kanban:card:move`
 - `kanban:card:reorder`
+- `kanban:card:openFile` (open card markdown in editor)
 - `kanban:column:create`
 - `kanban:column:create:request` (shows VS Code input box)
 - `kanban:column:update`
@@ -47,3 +51,4 @@ Extension -> Webview
 
 ## Error handling
 The extension catches errors from storage and returns `kanban:error`. The webview shows an alert with the message.
+This also covers file-open failures (for example, card file missing).

@@ -16,7 +16,7 @@ State payload shape:
 - Header: title + "Add Column" button
 - Search widget (toggle with Ctrl/Cmd+F)
 - Board: columns and cards
-- Dialog: create/edit card
+- Dialog: create/edit card (`Open .md` is shown only in edit mode)
 
 ## User interactions
 - Add column: posts `kanban:column:create:request` (extension prompts for name).
@@ -25,8 +25,15 @@ State payload shape:
 - Add card: dialog -> `kanban:card:create`.
 - Edit card: double click -> dialog -> `kanban:card:update`.
 - Delete card: dialog -> `kanban:card:delete`.
+- Open card markdown in editor:
+  - Card row "Open" button -> `kanban:card:openFile`.
+  - Edit dialog "Open .md" button -> `kanban:card:openFile`.
 - Drag cards: `kanban:card:reorder` (same column) or `kanban:card:move` (different column).
 - Drag columns: `kanban:column:reorder`.
+
+## State refresh after external edit
+- When the webview regains focus (or becomes visible), it posts `kanban:init` again.
+- This keeps board UI in sync after editing a card `.md` in a normal editor tab.
 
 ## Search
 - Open: Ctrl/Cmd+F (if no dialog open).

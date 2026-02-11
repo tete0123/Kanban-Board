@@ -106,6 +106,7 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
             <div id="labelList" class="label-list"></div>
           </div>
           <div class="dialog-actions">
+            <button id="openCardFile" class="secondary hidden">Open .md</button>
             <button id="deleteCard" class="danger hidden">Delete</button>
             <button id="cancelCard">Cancel</button>
             <button id="saveCard">Save</button>
@@ -190,6 +191,15 @@ async function handleMessage(message: {
     case "kanban:card:reorder":
       await storage.reorderCards(message.data ?? {});
       return await storage.readState();
+    case "kanban:card:openFile": {
+      const cardId =
+        typeof message.data?.cardId === "string" ? message.data.cardId : null;
+      if (!cardId) {
+        throw new Error("Missing card ID.");
+      }
+      await openCardFile(root, cardId);
+      return null;
+    }
     case "kanban:column:update":
       await storage.updateColumn(message.data ?? {});
       return await storage.readState();
@@ -262,4 +272,23 @@ function getVscodeFileSystem(): FileSystem<vscode.Uri> {
     stat: (path) => vscode.workspace.fs.stat(path),
     delete: (path, options) => vscode.workspace.fs.delete(path, options),
   };
+}
+
+async function openCardFile(root: vscode.Uri, cardId: string): Promise<void> {
+  const cardUri = vscode.Uri.joinPath(
+    root,
+    ".vscode-kanban",
+    "cards",
+    `${cardId}.md`
+  );
+  try {
+    await vscode.workspace.fs.stat(cardUri);
+  } catch {
+    throw new Error(`Card file not found: ${cardId}`);
+  }
+  const document = await vscode.workspace.openTextDocument(cardUri);
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+  });
 }

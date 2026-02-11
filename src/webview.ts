@@ -36,6 +36,9 @@ const dialogTitle = document.getElementById("dialogTitle") as HTMLHeadingElement
 const cardTitle = document.getElementById("cardTitle") as HTMLInputElement;
 const cardDetail = document.getElementById("cardDetail") as HTMLTextAreaElement;
 const cardDue = document.getElementById("cardDue") as HTMLInputElement;
+const openCardFileButton = document.getElementById(
+  "openCardFile"
+) as HTMLButtonElement;
 const cancelButton = document.getElementById("cancelCard") as HTMLButtonElement;
 const saveButton = document.getElementById("saveCard") as HTMLButtonElement;
 const deleteButton = document.getElementById("deleteCard") as HTMLButtonElement;
@@ -95,6 +98,7 @@ let dialogLabelIds: string[] = [];
 let editingLabelId: string | null = null;
 let labelFilterIds: string[] = [];
 let confirmAction: (() => void) | null = null;
+let lastStateSyncAt = 0;
 
 const AUTO_SCROLL_MARGIN = 60;
 const AUTO_SCROLL_SPEED = 18;
@@ -199,6 +203,7 @@ const openCreateDialog = (column: string) => {
   dialogLabelIds = [];
   dialogTitle.textContent = "Add Card";
   saveButton.textContent = "Save";
+  openCardFileButton.classList.add("hidden");
   deleteButton.classList.add("hidden");
   document.body.classList.add("dialog-open");
   backdrop.classList.remove("hidden");
@@ -217,6 +222,7 @@ const openEditDialog = (cardId: string) => {
   dialogLabelIds = [...card.labels];
   dialogTitle.textContent = "Edit Card";
   saveButton.textContent = "Update";
+  openCardFileButton.classList.remove("hidden");
   deleteButton.classList.remove("hidden");
   document.body.classList.add("dialog-open");
   cardTitle.value = card.title;
@@ -232,6 +238,7 @@ const closeDialog = () => {
   activeColumn = null;
   editingCardId = null;
   editDirty = false;
+  openCardFileButton.classList.add("hidden");
   deleteButton.classList.add("hidden");
   document.body.classList.remove("dialog-open");
   clearDialog();
@@ -784,6 +791,15 @@ const getDueStatus = (due: string | null): "overdue" | "today" | null => {
   return null;
 };
 
+const requestStateSync = (force = false) => {
+  const now = Date.now();
+  if (!force && now - lastStateSyncAt < 500) {
+    return;
+  }
+  lastStateSyncAt = now;
+  vscode.postMessage({ type: "kanban:init" });
+};
+
 const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
   const cardElement = document.createElement("article");
   cardElement.className = "card";
@@ -825,7 +841,24 @@ const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
     due.classList.add(`due-${dueStatus}`);
   }
   due.textContent = card.due ? `Due: ${card.due}` : "Due: None";
-  cardElement.appendChild(due);
+
+  const meta = document.createElement("div");
+  meta.className = "card-meta";
+  meta.appendChild(due);
+
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.className = "card-open-file";
+  openButton.textContent = "Open";
+  openButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    vscode.postMessage({
+      type: "kanban:card:openFile",
+      data: { cardId: card.id },
+    });
+  });
+  meta.appendChild(openButton);
+  cardElement.appendChild(meta);
 
   cardElement.addEventListener("dblclick", () => {
     openEditDialog(card.id);
@@ -992,6 +1025,16 @@ window.addEventListener("message", (event) => {
   }
 });
 
+openCardFileButton.addEventListener("click", () => {
+  if (!editingCardId) {
+    return;
+  }
+  vscode.postMessage({
+    type: "kanban:card:openFile",
+    data: { cardId: editingCardId },
+  });
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "f" && (event.metaKey || event.ctrlKey)) {
     if (isDialogOpen()) {
@@ -1027,4 +1070,21 @@ document.addEventListener("keydown", (event) => {
   closeDialog();
 });
 
-vscode.postMessage({ type: "kanban:init" });
+window.addEventListener("focus", () => {
+  if (isDialogOpen() || isLabelManagerOpen() || isConfirmOpen()) {
+    return;
+  }
+  requestStateSync();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+  if (isDialogOpen() || isLabelManagerOpen() || isConfirmOpen()) {
+    return;
+  }
+  requestStateSync();
+});
+
+requestStateSync(true);

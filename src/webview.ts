@@ -761,6 +761,29 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const pad2 = (value: number) => value.toString().padStart(2, "0");
+
+const getTodayLocalIsoDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(
+    today.getDate()
+  )}`;
+};
+
+const getDueStatus = (due: string | null): "overdue" | "today" | null => {
+  if (!due || !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+    return null;
+  }
+  const today = getTodayLocalIsoDate();
+  if (due === today) {
+    return "today";
+  }
+  if (due < today) {
+    return "overdue";
+  }
+  return null;
+};
+
 const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
   const cardElement = document.createElement("article");
   cardElement.className = "card";
@@ -797,6 +820,10 @@ const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
 
   const due = document.createElement("div");
   due.className = "due";
+  const dueStatus = getDueStatus(card.due);
+  if (dueStatus) {
+    due.classList.add(`due-${dueStatus}`);
+  }
   due.textContent = card.due ? `Due: ${card.due}` : "Due: None";
   cardElement.appendChild(due);
 

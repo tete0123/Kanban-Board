@@ -246,6 +246,14 @@ body.dialog-open .search-widget {
   font-weight: 600;
 }
 
+.card .due.due-overdue {
+  color: #ff5f5f;
+}
+
+.card .due.due-today {
+  color: #ffd44d;
+}
+
 .card-labels {
   display: flex;
   flex-wrap: wrap;

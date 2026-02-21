@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-02-21
+- Added `Move` action in card edit dialog
+- Added `Move Card` modal to choose destination list and position
+- Enabled card repositioning by explicit list/position selection to reduce drag-and-drop effort on large boards
+
 ## [1.0.4] - 2026-02-11
 - Highlighted due dates in card list: overdue dates are red, due-today dates are yellow
 - Added direct Markdown editing flow for cards via `Open` / `Open .md` in the VS Code editor

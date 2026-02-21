@@ -25,6 +25,12 @@ type StatePayload = {
   labels: Label[];
 };
 
+type CardLocation = {
+  columnId: string;
+  columnTitle: string;
+  index: number;
+};
+
 const vscode = acquireVsCodeApi();
 const board = document.getElementById("board") as HTMLDivElement;
 const addColumnButton = document.getElementById("addColumn") as HTMLButtonElement;
@@ -39,9 +45,24 @@ const cardDue = document.getElementById("cardDue") as HTMLInputElement;
 const openCardFileButton = document.getElementById(
   "openCardFile"
 ) as HTMLButtonElement;
+const openMoveCardButton = document.getElementById(
+  "openMoveCard"
+) as HTMLButtonElement;
 const cancelButton = document.getElementById("cancelCard") as HTMLButtonElement;
 const saveButton = document.getElementById("saveCard") as HTMLButtonElement;
 const deleteButton = document.getElementById("deleteCard") as HTMLButtonElement;
+const moveBackdrop = document.getElementById("moveBackdrop") as HTMLDivElement;
+const moveCurrent = document.getElementById("moveCurrent") as HTMLParagraphElement;
+const moveListSelect = document.getElementById("moveList") as HTMLSelectElement;
+const movePositionSelect = document.getElementById(
+  "movePosition"
+) as HTMLSelectElement;
+const cancelMoveCardButton = document.getElementById(
+  "cancelMoveCard"
+) as HTMLButtonElement;
+const confirmMoveCardButton = document.getElementById(
+  "confirmMoveCard"
+) as HTMLButtonElement;
 const searchWidget = document.getElementById("searchWidget") as HTMLDivElement;
 const searchInput = document.getElementById("searchInput") as HTMLInputElement;
 const searchCount = document.getElementById("searchCount") as HTMLSpanElement;
@@ -165,8 +186,24 @@ const clearDialog = () => {
   cardDue.value = "";
 };
 
+const findCardLocation = (cardId: string): CardLocation | null => {
+  const state = currentState;
+  if (!state) {
+    return null;
+  }
+  for (const column of state.columns) {
+    const ids = state.order[column.id] ?? [];
+    const index = ids.indexOf(cardId);
+    if (index !== -1) {
+      return { columnId: column.id, columnTitle: column.title, index };
+    }
+  }
+  return null;
+};
+
 const isLabelManagerOpen = () => !labelBackdrop.classList.contains("hidden");
 const isConfirmOpen = () => !confirmBackdrop.classList.contains("hidden");
+const isMoveOpen = () => !moveBackdrop.classList.contains("hidden");
 
 const openConfirm = (message: string, action: () => void) => {
   confirmTitle.textContent = "Confirm";
@@ -196,6 +233,70 @@ const closeLabelManagerModal = () => {
   resetLabelForm();
 };
 
+const renderMovePositionOptions = (
+  targetColumnId: string,
+  currentLocation: CardLocation,
+  selectedPosition: number
+) => {
+  const state = currentState;
+  if (!state) {
+    return;
+  }
+  const ids = state.order[targetColumnId] ?? [];
+  const maxPosition =
+    targetColumnId === currentLocation.columnId ? ids.length : ids.length + 1;
+  movePositionSelect.innerHTML = "";
+  const safePosition = Math.max(1, Math.min(selectedPosition, maxPosition));
+  for (let position = 1; position <= maxPosition; position += 1) {
+    const option = document.createElement("option");
+    option.value = String(position);
+    option.textContent = String(position);
+    if (position === safePosition) {
+      option.selected = true;
+    }
+    movePositionSelect.appendChild(option);
+  }
+};
+
+const openMoveDialog = () => {
+  if (!editingCardId || !currentState) {
+    return;
+  }
+  const currentLocation = findCardLocation(editingCardId);
+  if (!currentLocation) {
+    return;
+  }
+  moveListSelect.innerHTML = "";
+  currentState.columns.forEach((column) => {
+    const option = document.createElement("option");
+    option.value = column.id;
+    option.textContent = column.title;
+    if (column.id === currentLocation.columnId) {
+      option.selected = true;
+    }
+    moveListSelect.appendChild(option);
+  });
+  moveCurrent.textContent = `Current: ${currentLocation.columnTitle} / ${
+    currentLocation.index + 1
+  }`;
+  renderMovePositionOptions(
+    currentLocation.columnId,
+    currentLocation,
+    currentLocation.index + 1
+  );
+  moveBackdrop.classList.remove("hidden");
+  document.body.classList.add("move-open");
+  moveListSelect.focus();
+};
+
+const closeMoveDialog = () => {
+  moveBackdrop.classList.add("hidden");
+  document.body.classList.remove("move-open");
+  moveListSelect.innerHTML = "";
+  movePositionSelect.innerHTML = "";
+  moveCurrent.textContent = "";
+};
+
 const openCreateDialog = (column: string) => {
   activeColumn = column;
   editingCardId = null;
@@ -204,6 +305,7 @@ const openCreateDialog = (column: string) => {
   dialogTitle.textContent = "Add Card";
   saveButton.textContent = "Save";
   openCardFileButton.classList.add("hidden");
+  openMoveCardButton.classList.add("hidden");
   deleteButton.classList.add("hidden");
   document.body.classList.add("dialog-open");
   backdrop.classList.remove("hidden");
@@ -223,6 +325,7 @@ const openEditDialog = (cardId: string) => {
   dialogTitle.textContent = "Edit Card";
   saveButton.textContent = "Update";
   openCardFileButton.classList.remove("hidden");
+  openMoveCardButton.classList.remove("hidden");
   deleteButton.classList.remove("hidden");
   document.body.classList.add("dialog-open");
   cardTitle.value = card.title;
@@ -234,11 +337,13 @@ const openEditDialog = (cardId: string) => {
 };
 
 const closeDialog = () => {
+  closeMoveDialog();
   backdrop.classList.add("hidden");
   activeColumn = null;
   editingCardId = null;
   editDirty = false;
   openCardFileButton.classList.add("hidden");
+  openMoveCardButton.classList.add("hidden");
   deleteButton.classList.add("hidden");
   document.body.classList.remove("dialog-open");
   clearDialog();
@@ -441,6 +546,9 @@ const renderLabelFilterList = () => {
 };
 
 const renderState = (state: StatePayload) => {
+  if (editingCardId && !state.cards[editingCardId]) {
+    closeMoveDialog();
+  }
   currentState = state;
   board.innerHTML = "";
   const labelMap = new Map(state.labels.map((label) => [label.id, label]));
@@ -511,6 +619,12 @@ backdrop.addEventListener("click", (event) => {
   }
 });
 
+moveBackdrop.addEventListener("click", (event) => {
+  if (event.target === moveBackdrop) {
+    closeMoveDialog();
+  }
+});
+
 labelBackdrop.addEventListener("click", (event) => {
   if (event.target === labelBackdrop) {
     closeLabelManagerModal();
@@ -532,6 +646,48 @@ confirmOk.addEventListener("click", () => {
     confirmAction();
   }
   closeConfirm();
+});
+
+openMoveCardButton.addEventListener("click", () => {
+  openMoveDialog();
+});
+
+moveListSelect.addEventListener("change", () => {
+  if (!editingCardId) {
+    return;
+  }
+  const currentLocation = findCardLocation(editingCardId);
+  const targetColumnId = moveListSelect.value;
+  if (!currentLocation || !targetColumnId) {
+    return;
+  }
+  renderMovePositionOptions(targetColumnId, currentLocation, 1);
+});
+
+cancelMoveCardButton.addEventListener("click", () => {
+  closeMoveDialog();
+});
+
+confirmMoveCardButton.addEventListener("click", () => {
+  if (!editingCardId) {
+    return;
+  }
+  const currentLocation = findCardLocation(editingCardId);
+  const targetColumnId = moveListSelect.value;
+  const selectedPosition = Number.parseInt(movePositionSelect.value, 10);
+  if (!currentLocation || !targetColumnId || Number.isNaN(selectedPosition)) {
+    return;
+  }
+  vscode.postMessage({
+    type: "kanban:card:move",
+    data: {
+      cardId: editingCardId,
+      fromColumnId: currentLocation.columnId,
+      toColumnId: targetColumnId,
+      toIndex: selectedPosition - 1,
+    },
+  });
+  closeMoveDialog();
 });
 
 closeLabelsButton.addEventListener("click", () => {
@@ -1057,6 +1213,11 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isConfirmOpen()) {
     event.preventDefault();
     closeConfirm();
+    return;
+  }
+  if (event.key === "Escape" && isMoveOpen()) {
+    event.preventDefault();
+    closeMoveDialog();
     return;
   }
   if (event.key !== "Escape" || !isDialogOpen()) {

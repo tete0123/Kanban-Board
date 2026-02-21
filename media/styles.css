@@ -330,11 +330,19 @@ body.dialog-open .search-widget {
   z-index: 40;
 }
 
+#moveBackdrop {
+  z-index: 45;
+}
+
 #confirmBackdrop {
   z-index: 50;
 }
 
 body.label-open #dialogBackdrop {
+  pointer-events: none;
+}
+
+body.move-open #dialogBackdrop {
   pointer-events: none;
 }
 
@@ -536,13 +544,24 @@ body.label-open #dialogBackdrop {
 }
 
 .dialog input,
-.dialog textarea {
+.dialog textarea,
+.dialog select {
   border-radius: 10px;
   border: 1px solid var(--border);
   padding: 8px 10px;
   font-size: 14px;
   background: #12151b;
   color: var(--text);
+}
+
+.move-dialog {
+  width: min(360px, 100%);
+}
+
+.move-current {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .dialog-actions {
@@ -579,6 +598,11 @@ body.label-open #dialogBackdrop {
 }
 
 #saveCard {
+  background: var(--accent);
+  color: #0b1012;
+}
+
+#confirmMoveCard {
   background: var(--accent);
   color: #0b1012;
 }

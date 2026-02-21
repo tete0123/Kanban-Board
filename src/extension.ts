@@ -107,9 +107,28 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
           </div>
           <div class="dialog-actions">
             <button id="openCardFile" class="secondary hidden">Open .md</button>
+            <button id="openMoveCard" class="secondary hidden">Move</button>
             <button id="deleteCard" class="danger hidden">Delete</button>
             <button id="cancelCard">Cancel</button>
             <button id="saveCard">Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-backdrop hidden" id="moveBackdrop">
+        <div class="dialog move-dialog">
+          <h2>Move Card</h2>
+          <p id="moveCurrent" class="move-current"></p>
+          <label>
+            List
+            <select id="moveList"></select>
+          </label>
+          <label>
+            Position
+            <select id="movePosition"></select>
+          </label>
+          <div class="dialog-actions">
+            <button id="cancelMoveCard" class="secondary">Cancel</button>
+            <button id="confirmMoveCard">Move</button>
           </div>
         </div>
       </div>

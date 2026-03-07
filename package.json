@@ -51,8 +51,9 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@types/vscode": "^1.88.0",
     "@types/node": "^20.11.30",
+    "@types/vscode": "^1.88.0",
+    "jsdom": "^24.1.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   }

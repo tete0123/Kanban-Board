@@ -554,6 +554,11 @@ body.move-open #dialogBackdrop {
   color: var(--text);
 }
 
+#cardDue::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 1;
+}
+
 .move-dialog {
   width: min(360px, 100%);
 }

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.6] - 2026-03-10
+- Improved due date input visibility by adjusting the date picker indicator color in the card dialog
+- Changed to display the list (column) in a fixed horizontal row
+
 ## [1.0.5] - 2026-02-21
 - Added `Move` action in card edit dialog
 - Added `Move Card` modal to choose destination list and position

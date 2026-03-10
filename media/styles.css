@@ -109,10 +109,12 @@ body {
 }
 
 .board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px 32px 40px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .column {
@@ -124,6 +126,7 @@ body {
   flex-direction: column;
   min-height: 300px;
   border: 1px solid var(--border);
+  flex: 0 0 300px;
 }
 
 .column-header {

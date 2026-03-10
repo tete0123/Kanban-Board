@@ -52,4 +52,4 @@ Data is stored under your workspace:
 
 ## Release Notes
 
-- 1.0.0 Initial release
+See [CHANGELOG](CHANGELOG.md)

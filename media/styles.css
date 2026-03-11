@@ -127,6 +127,7 @@ body {
   min-height: 300px;
   border: 1px solid var(--border);
   flex: 0 0 300px;
+  min-width: 0;
 }
 
 .column-header {
@@ -228,9 +229,9 @@ body.dialog-open .search-widget {
 .card h3 {
   margin: 0 0 6px;
   font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card p {
@@ -241,6 +242,8 @@ body.dialog-open .search-widget {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card .due {

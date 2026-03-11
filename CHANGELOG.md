@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2026-03-12
+- Improved card text rendering in horizontal list layout by enabling line wrapping for long titles/details
+- Prevented columns from expanding excessively due to long unbroken text
+
 ## [1.0.6] - 2026-03-10
 - Improved due date input visibility by adjusting the date picker indicator color in the card dialog
 - Changed to display the list (column) in a fixed horizontal row

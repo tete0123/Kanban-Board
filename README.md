@@ -13,6 +13,7 @@ stored in your workspace and can be versioned with your project.
 
 - Create, rename, reorder, and delete columns (drag the handle to reorder).
 - Create, edit (double click), delete, and move cards with drag and drop.
+- Display columns in a horizontal row with side scrolling, while long card text wraps within each column.
 - Set optional due dates on cards.
 - Open a card's Markdown file directly in the VS Code editor (`Open` / `Open .md`).
 - Persist data in your workspace as Markdown with front matter.

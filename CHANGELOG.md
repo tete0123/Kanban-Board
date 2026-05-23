@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+- Added card checklists with editable items and board progress summaries
+
 ## [1.0.7] - 2026-03-12
 - Improved card text rendering in horizontal list layout by enabling line wrapping for long titles/details
 - Prevented columns from expanding excessively due to long unbroken text

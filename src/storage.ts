@@ -17,8 +17,15 @@ export type CardData = {
   detail: string;
   due: string | null;
   labels: string[];
+  checklist: ChecklistItem[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ChecklistItem = {
+  id: string;
+  text: string;
+  done: boolean;
 };
 
 export type StatePayload = {
@@ -118,6 +125,42 @@ export function createStorage<PathType>(
     return Array.from(new Set(trimmed));
   };
 
+  const normalizeChecklistItems = (value: unknown): ChecklistItem[] => {
+    const rawItems =
+      typeof value === "string"
+        ? (() => {
+            try {
+              return JSON.parse(value);
+            } catch {
+              return [];
+            }
+          })()
+        : value;
+    if (!Array.isArray(rawItems)) {
+      return [];
+    }
+    return rawItems
+      .map((item) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        const raw = item as Record<string, unknown>;
+        const text = typeof raw.text === "string" ? raw.text.trim() : "";
+        if (!text) {
+          return null;
+        }
+        const id =
+          typeof raw.id === "string" && raw.id.trim()
+            ? raw.id.trim()
+            : generateId();
+        return { id, text, done: raw.done === true };
+      })
+      .filter((item): item is ChecklistItem => item !== null);
+  };
+
+  const serializeChecklist = (items: ChecklistItem[]): string | null =>
+    items.length > 0 ? JSON.stringify(items) : null;
+
   const loadCard = async (cardId: string): Promise<CardData | null> => {
     const { cardsDir } = getStoragePaths();
     const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
@@ -142,12 +185,14 @@ export function createStorage<PathType>(
           : new Date(stat.mtime).toISOString();
       const due = typeof meta.due === "string" ? meta.due : null;
       const labels = parseLabelList(meta.labels ?? null);
+      const checklist = normalizeChecklistItems(meta.checklist ?? null);
       return {
         id: cardId,
         title,
         detail,
         due,
         labels,
+        checklist,
         createdAt,
         updatedAt,
       };
@@ -225,6 +270,7 @@ export function createStorage<PathType>(
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
     const labels = normalizeLabelIds(data.labels);
+    const checklist = normalizeChecklistItems(data.checklist);
     if (!title.trim()) {
       throw new Error("Title is empty.");
     }
@@ -239,6 +285,7 @@ export function createStorage<PathType>(
       id: cardId,
       title: title.trim(),
       labels: labels.length > 0 ? labels.join(",") : null,
+      checklist: serializeChecklist(checklist),
       due: due && due.trim() ? due : null,
       createdAt: now,
       updatedAt: now,
@@ -261,6 +308,7 @@ export function createStorage<PathType>(
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
     const labels = normalizeLabelIds(data.labels);
+    const checklist = normalizeChecklistItems(data.checklist);
     if (!title.trim()) {
       throw new Error("Title is empty.");
     }
@@ -278,6 +326,7 @@ export function createStorage<PathType>(
     meta.id = cardId;
     meta.title = title.trim();
     meta.labels = labels.length > 0 ? labels.join(",") : null;
+    meta.checklist = serializeChecklist(checklist);
     meta.due = due && due.trim() ? due : null;
     meta.createdAt =
       typeof meta.createdAt === "string" && meta.createdAt

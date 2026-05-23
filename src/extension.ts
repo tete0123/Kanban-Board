@@ -98,6 +98,16 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
             Due Date
             <input id="cardDue" type="date" />
           </label>
+          <div class="checklist-section">
+            <div class="checklist-header">
+              <span>Checklist</span>
+            </div>
+            <div id="checklistList" class="checklist-list"></div>
+            <div class="checklist-add">
+              <input id="checklistText" type="text" placeholder="Checklist item" />
+              <button id="addChecklistItem" type="button">Add</button>
+            </div>
+          </div>
           <div class="label-section">
             <div class="label-header">
               <span>Labels</span>

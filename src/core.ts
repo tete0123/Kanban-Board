@@ -92,7 +92,15 @@ export function serializeFrontMatter(
   meta: Record<string, string | null>,
   body: string
 ): string {
-  const knownKeys = ["id", "title", "labels", "due", "createdAt", "updatedAt"];
+  const knownKeys = [
+    "id",
+    "title",
+    "labels",
+    "checklist",
+    "due",
+    "createdAt",
+    "updatedAt",
+  ];
   const lines: string[] = [];
   knownKeys.forEach((key) => {
     if (key in meta) {

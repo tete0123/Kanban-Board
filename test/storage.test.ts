@@ -102,17 +102,32 @@ describe("storage with in-memory fs", () => {
     const fs = createInMemoryFileSystem();
     const storage = createStorage(fs, "/workspace");
 
-    await storage.createCard({ title: "First", detail: "Hello" });
+    await storage.createCard({
+      title: "First",
+      detail: "Hello",
+      checklist: [{ id: "item-1", text: "Read", done: false }],
+    });
     let state = await storage.readState();
     const [cardId] = Object.keys(state.cards);
     expect(cardId).toBeTruthy();
     expect(state.order.todo).toEqual([cardId]);
     expect(state.cards[cardId].title).toBe("First");
+    expect(state.cards[cardId].checklist).toEqual([
+      { id: "item-1", text: "Read", done: false },
+    ]);
 
-    await storage.updateCard({ cardId, title: "Updated", detail: "Next" });
+    await storage.updateCard({
+      cardId,
+      title: "Updated",
+      detail: "Next",
+      checklist: [{ id: "item-1", text: "Read", done: true }],
+    });
     state = await storage.readState();
     expect(state.cards[cardId].title).toBe("Updated");
     expect(state.cards[cardId].detail).toBe("Next");
+    expect(state.cards[cardId].checklist).toEqual([
+      { id: "item-1", text: "Read", done: true },
+    ]);
 
     await storage.deleteCard({ cardId });
     state = await storage.readState();

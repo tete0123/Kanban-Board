@@ -8,8 +8,15 @@ type CardData = {
   detail: string;
   due: string | null;
   labels: string[];
+  checklist: ChecklistItem[];
   createdAt: string;
   updatedAt: string;
+};
+
+type ChecklistItem = {
+  id: string;
+  text: string;
+  done: boolean;
 };
 
 type Label = {
@@ -42,6 +49,13 @@ const dialogTitle = document.getElementById("dialogTitle") as HTMLHeadingElement
 const cardTitle = document.getElementById("cardTitle") as HTMLInputElement;
 const cardDetail = document.getElementById("cardDetail") as HTMLTextAreaElement;
 const cardDue = document.getElementById("cardDue") as HTMLInputElement;
+const checklistList = document.getElementById("checklistList") as HTMLDivElement;
+const checklistText = document.getElementById(
+  "checklistText"
+) as HTMLInputElement;
+const addChecklistItemButton = document.getElementById(
+  "addChecklistItem"
+) as HTMLButtonElement;
 const openCardFileButton = document.getElementById(
   "openCardFile"
 ) as HTMLButtonElement;
@@ -116,6 +130,7 @@ let searchQuery = "";
 let autoScrollRaf: number | null = null;
 let lastPointer: { x: number; y: number } | null = null;
 let dialogLabelIds: string[] = [];
+let dialogChecklist: ChecklistItem[] = [];
 let editingLabelId: string | null = null;
 let labelFilterIds: string[] = [];
 let confirmAction: (() => void) | null = null;
@@ -184,6 +199,9 @@ const clearDialog = () => {
   cardTitle.value = "";
   cardDetail.value = "";
   cardDue.value = "";
+  checklistText.value = "";
+  dialogChecklist = [];
+  renderChecklistList();
 };
 
 const findCardLocation = (cardId: string): CardLocation | null => {
@@ -302,6 +320,7 @@ const openCreateDialog = (column: string) => {
   editingCardId = null;
   editDirty = false;
   dialogLabelIds = [];
+  dialogChecklist = [];
   dialogTitle.textContent = "Add Card";
   saveButton.textContent = "Save";
   openCardFileButton.classList.add("hidden");
@@ -311,6 +330,7 @@ const openCreateDialog = (column: string) => {
   backdrop.classList.remove("hidden");
   cardTitle.focus();
   renderLabelList();
+  renderChecklistList();
 };
 
 const openEditDialog = (cardId: string) => {
@@ -322,6 +342,7 @@ const openEditDialog = (cardId: string) => {
   editingCardId = cardId;
   editDirty = false;
   dialogLabelIds = [...card.labels];
+  dialogChecklist = [...(card.checklist ?? [])];
   dialogTitle.textContent = "Edit Card";
   saveButton.textContent = "Update";
   openCardFileButton.classList.remove("hidden");
@@ -334,6 +355,7 @@ const openEditDialog = (cardId: string) => {
   backdrop.classList.remove("hidden");
   cardTitle.focus();
   renderLabelList();
+  renderChecklistList();
 };
 
 const closeDialog = () => {
@@ -461,6 +483,78 @@ const renderLabelList = () => {
     row.appendChild(name);
     labelList.appendChild(row);
   });
+};
+
+const generateClientId = () =>
+  `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+const clearChecklistText = () => {
+  checklistText.value = "";
+  requestAnimationFrame(() => {
+    checklistText.value = "";
+  });
+  window.setTimeout(() => {
+    checklistText.value = "";
+  }, 0);
+};
+
+const renderChecklistList = () => {
+  if (!checklistList) {
+    return;
+  }
+  checklistList.innerHTML = "";
+  dialogChecklist.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "checklist-row";
+    row.dataset.itemId = item.id;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = item.done;
+    checkbox.addEventListener("change", () => {
+      dialogChecklist = dialogChecklist.map((current) =>
+        current.id === item.id ? { ...current, done: checkbox.checked } : current
+      );
+      editDirty = true;
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = item.text;
+    input.addEventListener("input", () => {
+      dialogChecklist = dialogChecklist.map((current) =>
+        current.id === item.id ? { ...current, text: input.value } : current
+      );
+      editDirty = true;
+    });
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => {
+      dialogChecklist = dialogChecklist.filter((current) => current.id !== item.id);
+      editDirty = true;
+      renderChecklistList();
+    });
+
+    row.appendChild(checkbox);
+    row.appendChild(input);
+    row.appendChild(removeButton);
+    checklistList.appendChild(row);
+  });
+};
+
+const addChecklistItem = () => {
+  const text = checklistText.value.trim();
+  if (!text) {
+    checklistText.focus();
+    return;
+  }
+  dialogChecklist.push({ id: generateClientId(), text, done: false });
+  editDirty = true;
+  renderChecklistList();
+  clearChecklistText();
+  checklistText.focus();
 };
 
 const renderLabelManager = () => {
@@ -694,10 +788,24 @@ closeLabelsButton.addEventListener("click", () => {
   closeLabelManagerModal();
 });
 
+addChecklistItemButton.addEventListener("click", () => {
+  addChecklistItem();
+});
+
+checklistText.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addChecklistItem();
+  }
+});
+
 saveButton.addEventListener("click", () => {
   const title = cardTitle.value.trim();
   const detail = cardDetail.value.trim();
   const due = cardDue.value.trim();
+  const checklist = dialogChecklist
+    .map((item) => ({ ...item, text: item.text.trim() }))
+    .filter((item) => item.text.length > 0);
 
   if (!title) {
     cardTitle.focus();
@@ -713,6 +821,7 @@ saveButton.addEventListener("click", () => {
         detail,
         due: due || null,
         labels: dialogLabelIds,
+        checklist,
       },
     });
     closeDialog();
@@ -730,6 +839,7 @@ saveButton.addEventListener("click", () => {
       detail,
       due: due || null,
       labels: dialogLabelIds,
+      checklist,
     },
   });
   closeDialog();
@@ -832,7 +942,7 @@ clearLabelFilter.addEventListener("click", () => {
   applyLabelFilter();
 });
 
-[cardTitle, cardDetail, cardDue].forEach((field) => {
+[cardTitle, cardDetail, cardDue, checklistText].forEach((field) => {
   field.addEventListener("input", () => {
     if (isDialogOpen()) {
       editDirty = true;
@@ -966,9 +1076,12 @@ const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
     .map((id) => labelMap.get(id))
     .filter((label): label is Label => Boolean(label));
   const labelText = labels.map((label) => label.name).join(" ");
+  const checklistTextValue = (card.checklist ?? [])
+    .map((item) => item.text)
+    .join(" ");
   cardElement.dataset.searchText = `${card.title} ${card.detail} ${
     card.due ?? ""
-  } ${labelText}`.toLowerCase();
+  } ${labelText} ${checklistTextValue}`.toLowerCase();
   if (labels.length > 0) {
     const labelsContainer = document.createElement("div");
     labelsContainer.className = "card-labels";
@@ -989,6 +1102,14 @@ const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
   const detail = document.createElement("p");
   detail.textContent = card.detail ? card.detail : "No details";
   cardElement.appendChild(detail);
+
+  if ((card.checklist ?? []).length > 0) {
+    const checklistSummary = document.createElement("div");
+    checklistSummary.className = "card-checklist-summary";
+    const doneCount = card.checklist.filter((item) => item.done).length;
+    checklistSummary.textContent = `Checklist: ${doneCount}/${card.checklist.length}`;
+    cardElement.appendChild(checklistSummary);
+  }
 
   const due = document.createElement("div");
   due.className = "due";

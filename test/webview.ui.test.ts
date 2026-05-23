@@ -33,6 +33,14 @@ const createWebviewDom = () => `
       <label>Title <input id="cardTitle" type="text" /></label>
       <label>Details <textarea id="cardDetail" rows="4"></textarea></label>
       <label>Due Date <input id="cardDue" type="date" /></label>
+      <div class="checklist-section">
+        <div class="checklist-header"><span>Checklist</span></div>
+        <div id="checklistList" class="checklist-list"></div>
+        <div class="checklist-add">
+          <input id="checklistText" type="text" />
+          <button id="addChecklistItem" type="button">Add</button>
+        </div>
+      </div>
       <div class="label-section">
         <div class="label-header">
           <span>Labels</span>
@@ -147,6 +155,7 @@ describe("webview ui", () => {
           detail: "Detail A",
           due: null,
           labels: [],
+          checklist: [],
           createdAt: new Date(0).toISOString(),
           updatedAt: new Date(0).toISOString(),
         },
@@ -178,8 +187,36 @@ describe("webview ui", () => {
         detail: "details",
         due: "2026-03-10",
         labels: [],
+        checklist: [],
       },
     });
+  });
+
+  it("adds checklist items to created cards", () => {
+    renderState(baseState);
+
+    (document.querySelector(".add-card") as HTMLButtonElement).click();
+    (document.getElementById("cardTitle") as HTMLInputElement).value = "New task";
+    (document.getElementById("checklistText") as HTMLInputElement).value = "Review";
+    (document.getElementById("addChecklistItem") as HTMLButtonElement).click();
+    (document.getElementById("saveCard") as HTMLButtonElement).click();
+
+    const message = postMessageOf(api, "kanban:card:create");
+    expect(message?.type).toBe("kanban:card:create");
+    expect(message?.data?.checklist).toEqual([
+      expect.objectContaining({ text: "Review", done: false }),
+    ]);
+  });
+
+  it("clears checklist add text after adding an item", () => {
+    renderState(baseState);
+
+    (document.querySelector(".add-card") as HTMLButtonElement).click();
+    const input = document.getElementById("checklistText") as HTMLInputElement;
+    input.value = "Review";
+    (document.getElementById("addChecklistItem") as HTMLButtonElement).click();
+
+    expect(input.value).toBe("");
   });
 
   it("posts kanban:card:update with edited due date", () => {
@@ -193,6 +230,7 @@ describe("webview ui", () => {
           detail: "Detail A",
           due: "2026-03-01",
           labels: [],
+          checklist: [{ id: "item-1", text: "Review", done: false }],
           createdAt: new Date(0).toISOString(),
           updatedAt: new Date(0).toISOString(),
         },
@@ -214,6 +252,7 @@ describe("webview ui", () => {
         detail: "Detail A",
         due: "2026-03-20",
         labels: [],
+        checklist: [{ id: "item-1", text: "Review", done: false }],
       },
     });
   });

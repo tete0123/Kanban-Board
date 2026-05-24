@@ -6,6 +6,7 @@ type CardData = {
   id: string;
   title: string;
   detail: string;
+  parentId: string | null;
   due: string | null;
   labels: string[];
   checklist: ChecklistItem[];
@@ -55,6 +56,26 @@ const checklistText = document.getElementById(
 ) as HTMLInputElement;
 const addChecklistItemButton = document.getElementById(
   "addChecklistItem"
+) as HTMLButtonElement;
+const relationshipSection = document.getElementById(
+  "relationshipSection"
+) as HTMLDivElement;
+const parentCardRow = document.getElementById("parentCardRow") as HTMLDivElement;
+const childCardList = document.getElementById("childCardList") as HTMLDivElement;
+const parentCardSelect = document.getElementById(
+  "parentCardSelect"
+) as HTMLSelectElement;
+const setParentCardButton = document.getElementById(
+  "setParentCard"
+) as HTMLButtonElement;
+const childCardSelect = document.getElementById(
+  "childCardSelect"
+) as HTMLSelectElement;
+const attachChildCardButton = document.getElementById(
+  "attachChildCard"
+) as HTMLButtonElement;
+const createChildCardButton = document.getElementById(
+  "createChildCard"
 ) as HTMLButtonElement;
 const openCardFileButton = document.getElementById(
   "openCardFile"
@@ -131,6 +152,7 @@ let autoScrollRaf: number | null = null;
 let lastPointer: { x: number; y: number } | null = null;
 let dialogLabelIds: string[] = [];
 let dialogChecklist: ChecklistItem[] = [];
+let dialogParentId: string | null = null;
 let editingLabelId: string | null = null;
 let labelFilterIds: string[] = [];
 let confirmAction: (() => void) | null = null;
@@ -201,7 +223,9 @@ const clearDialog = () => {
   cardDue.value = "";
   checklistText.value = "";
   dialogChecklist = [];
+  dialogParentId = null;
   renderChecklistList();
+  renderRelationshipSection();
 };
 
 const findCardLocation = (cardId: string): CardLocation | null => {
@@ -315,12 +339,13 @@ const closeMoveDialog = () => {
   moveCurrent.textContent = "";
 };
 
-const openCreateDialog = (column: string) => {
+const openCreateDialog = (column: string, parentId: string | null = null) => {
   activeColumn = column;
   editingCardId = null;
   editDirty = false;
   dialogLabelIds = [];
   dialogChecklist = [];
+  dialogParentId = parentId;
   dialogTitle.textContent = "Add Card";
   saveButton.textContent = "Save";
   openCardFileButton.classList.add("hidden");
@@ -331,6 +356,7 @@ const openCreateDialog = (column: string) => {
   cardTitle.focus();
   renderLabelList();
   renderChecklistList();
+  renderRelationshipSection();
 };
 
 const openEditDialog = (cardId: string) => {
@@ -343,6 +369,7 @@ const openEditDialog = (cardId: string) => {
   editDirty = false;
   dialogLabelIds = [...card.labels];
   dialogChecklist = [...(card.checklist ?? [])];
+  dialogParentId = card.parentId ?? null;
   dialogTitle.textContent = "Edit Card";
   saveButton.textContent = "Update";
   openCardFileButton.classList.remove("hidden");
@@ -356,6 +383,7 @@ const openEditDialog = (cardId: string) => {
   cardTitle.focus();
   renderLabelList();
   renderChecklistList();
+  renderRelationshipSection();
 };
 
 const closeDialog = () => {
@@ -557,6 +585,178 @@ const addChecklistItem = () => {
   checklistText.focus();
 };
 
+const getDirectChildren = (cardId: string): CardData[] => {
+  const cards = currentState?.cards ?? {};
+  return Object.values(cards).filter((card) => card.parentId === cardId);
+};
+
+const getAncestorIds = (cardId: string): Set<string> => {
+  const cards = currentState?.cards ?? {};
+  const ancestors = new Set<string>();
+  let current = cards[cardId]?.parentId ?? null;
+  while (current && !ancestors.has(current)) {
+    ancestors.add(current);
+    current = cards[current]?.parentId ?? null;
+  }
+  return ancestors;
+};
+
+const getDescendantIds = (cardId: string): Set<string> => {
+  const descendants = new Set<string>();
+  const visit = (parentId: string) => {
+    getDirectChildren(parentId).forEach((child) => {
+      if (descendants.has(child.id)) {
+        return;
+      }
+      descendants.add(child.id);
+      visit(child.id);
+    });
+  };
+  visit(cardId);
+  return descendants;
+};
+
+const postCardUpdate = (card: CardData, parentId: string | null) => {
+  vscode.postMessage({
+    type: "kanban:card:update",
+    data: {
+      cardId: card.id,
+      title: card.title,
+      detail: card.detail,
+      due: card.due,
+      parentId,
+      labels: card.labels,
+      checklist: card.checklist,
+    },
+  });
+};
+
+const getSelectedParentId = (): string | null => {
+  if (!editingCardId || relationshipSection.classList.contains("hidden")) {
+    return dialogParentId;
+  }
+  return parentCardSelect.value || null;
+};
+
+const getSelectedChildForAttachment = (): CardData | null => {
+  if (!editingCardId || !currentState || relationshipSection.classList.contains("hidden")) {
+    return null;
+  }
+  const childId = childCardSelect.value;
+  return childId ? currentState.cards[childId] ?? null : null;
+};
+
+const appendRelationshipCardButton = (
+  container: HTMLElement,
+  card: CardData,
+  actionText: string,
+  action: () => void
+) => {
+  const row = document.createElement("div");
+  row.className = "relationship-card-row";
+
+  const title = document.createElement("button");
+  title.type = "button";
+  title.className = "relationship-card-title";
+  title.textContent = card.title;
+  title.addEventListener("click", () => {
+    openEditDialog(card.id);
+  });
+
+  const actionButton = document.createElement("button");
+  actionButton.type = "button";
+  actionButton.textContent = actionText;
+  actionButton.addEventListener("click", action);
+
+  row.appendChild(title);
+  row.appendChild(actionButton);
+  container.appendChild(row);
+};
+
+const renderRelationshipOptions = () => {
+  parentCardSelect.innerHTML = "";
+  childCardSelect.innerHTML = "";
+  if (!editingCardId || !currentState) {
+    return;
+  }
+
+  const parentNone = document.createElement("option");
+  parentNone.value = "";
+  parentNone.textContent = "No parent";
+  parentCardSelect.appendChild(parentNone);
+
+  const descendants = getDescendantIds(editingCardId);
+  Object.values(currentState.cards)
+    .filter((card) => card.id !== editingCardId && !descendants.has(card.id))
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .forEach((card) => {
+      const option = document.createElement("option");
+      option.value = card.id;
+      option.textContent = card.title;
+      option.selected = card.id === dialogParentId;
+      parentCardSelect.appendChild(option);
+    });
+
+  const childNone = document.createElement("option");
+  childNone.value = "";
+  childNone.textContent = "Select child";
+  childCardSelect.appendChild(childNone);
+
+  const ancestors = getAncestorIds(editingCardId);
+  Object.values(currentState.cards)
+    .filter((card) => card.id !== editingCardId && !ancestors.has(card.id))
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .forEach((card) => {
+      const option = document.createElement("option");
+      option.value = card.id;
+      option.textContent = card.title;
+      childCardSelect.appendChild(option);
+    });
+};
+
+const renderRelationshipSection = () => {
+  if (!relationshipSection) {
+    return;
+  }
+  parentCardRow.innerHTML = "";
+  childCardList.innerHTML = "";
+  if (!editingCardId || !currentState) {
+    relationshipSection.classList.add("hidden");
+    return;
+  }
+  relationshipSection.classList.remove("hidden");
+
+  const currentCard = currentState.cards[editingCardId];
+  const parent = currentCard?.parentId
+    ? currentState.cards[currentCard.parentId] ?? null
+    : null;
+  if (parent) {
+    appendRelationshipCardButton(parentCardRow, parent, "Remove", () => {
+      if (!currentCard) {
+        return;
+      }
+      postCardUpdate(currentCard, null);
+      dialogParentId = null;
+    });
+  } else {
+    parentCardRow.textContent = "No parent";
+  }
+
+  const children = getDirectChildren(editingCardId);
+  if (children.length === 0) {
+    childCardList.textContent = "No children";
+  } else {
+    children
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .forEach((child) => {
+        appendRelationshipCardButton(childCardList, child, "Remove", () => {
+          postCardUpdate(child, null);
+        });
+      });
+  }
+  renderRelationshipOptions();
+};
+
 const renderLabelManager = () => {
   if (!labelManagerList) {
     return;
@@ -652,6 +852,7 @@ const renderState = (state: StatePayload) => {
   });
   syncDialogLabels(state.labels);
   renderLabelList();
+  renderRelationshipSection();
   renderLabelManager();
   renderLabelFilterList();
   if (searchQuery) {
@@ -792,6 +993,44 @@ addChecklistItemButton.addEventListener("click", () => {
   addChecklistItem();
 });
 
+setParentCardButton.addEventListener("click", () => {
+  if (!editingCardId || !currentState) {
+    return;
+  }
+  const card = currentState.cards[editingCardId];
+  if (!card) {
+    return;
+  }
+  const parentId = getSelectedParentId();
+  postCardUpdate(card, parentId);
+  dialogParentId = parentId;
+});
+
+attachChildCardButton.addEventListener("click", () => {
+  if (!editingCardId || !currentState) {
+    return;
+  }
+  const childId = childCardSelect.value;
+  const child = childId ? currentState.cards[childId] : null;
+  if (!child) {
+    childCardSelect.focus();
+    return;
+  }
+  postCardUpdate(child, editingCardId);
+});
+
+createChildCardButton.addEventListener("click", () => {
+  if (!editingCardId) {
+    return;
+  }
+  const location = findCardLocation(editingCardId);
+  if (!location) {
+    return;
+  }
+  clearDialog();
+  openCreateDialog(location.columnId, editingCardId);
+});
+
 checklistText.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -813,6 +1052,8 @@ saveButton.addEventListener("click", () => {
   }
 
   if (editingCardId) {
+    const selectedParentId = getSelectedParentId();
+    const selectedChild = getSelectedChildForAttachment();
     vscode.postMessage({
       type: "kanban:card:update",
       data: {
@@ -820,10 +1061,14 @@ saveButton.addEventListener("click", () => {
         title,
         detail,
         due: due || null,
+        parentId: selectedParentId,
         labels: dialogLabelIds,
         checklist,
       },
     });
+    if (selectedChild && selectedChild.parentId !== editingCardId) {
+      postCardUpdate(selectedChild, editingCardId);
+    }
     closeDialog();
     return;
   }
@@ -838,6 +1083,7 @@ saveButton.addEventListener("click", () => {
       title,
       detail,
       due: due || null,
+      parentId: dialogParentId,
       labels: dialogLabelIds,
       checklist,
     },
@@ -1109,6 +1355,21 @@ const buildCardElement = (card: CardData, labelMap: Map<string, Label>) => {
     const doneCount = card.checklist.filter((item) => item.done).length;
     checklistSummary.textContent = `Checklist: ${doneCount}/${card.checklist.length}`;
     cardElement.appendChild(checklistSummary);
+  }
+
+  const childCount = getDirectChildren(card.id).length;
+  if (card.parentId || childCount > 0) {
+    const relationshipSummary = document.createElement("div");
+    relationshipSummary.className = "card-relationship-summary";
+    const parts: string[] = [];
+    if (card.parentId) {
+      parts.push("Parent");
+    }
+    if (childCount > 0) {
+      parts.push(`Children: ${childCount}`);
+    }
+    relationshipSummary.textContent = parts.join(" / ");
+    cardElement.appendChild(relationshipSummary);
   }
 
   const due = document.createElement("div");

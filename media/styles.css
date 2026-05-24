@@ -253,6 +253,13 @@ body.dialog-open .search-widget {
   font-weight: 600;
 }
 
+.card-relationship-summary {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+}
+
 .card .due {
   font-size: 12px;
   color: var(--text);
@@ -401,12 +408,76 @@ body.move-open #dialogBackdrop {
   border-top: 1px solid var(--border);
 }
 
+.relationship-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
 .checklist-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
   color: var(--muted);
+}
+
+.relationship-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.relationship-row,
+.relationship-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.relationship-card-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.relationship-card-title {
+  border: 1px solid var(--border);
+  background: #12151b;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relationship-card-row button:not(.relationship-card-title),
+.relationship-actions button,
+#createChildCard {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.relationship-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
 }
 
 .checklist-list {

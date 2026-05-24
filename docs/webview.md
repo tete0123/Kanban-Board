@@ -8,7 +8,8 @@ State payload shape:
 {
   columns: [{ id, title }],
   order: { [columnId]: string[] },
-  cards: { [cardId]: { id, title, detail, due, createdAt, updatedAt } }
+  cards: { [cardId]: { id, title, detail, parentId, due, labels, checklist, createdAt, updatedAt } },
+  labels: [{ id, name, color }]
 }
 ```
 
@@ -17,6 +18,7 @@ State payload shape:
 - Search widget (toggle with Ctrl/Cmd+F)
 - Board: columns and cards
 - Dialog: create/edit card (`Open .md` is shown only in edit mode)
+- Parent/children section in the card dialog for assigning, removing, and opening directly related cards
 
 ## User interactions
 - Add column: posts `kanban:column:create:request` (extension prompts for name).
@@ -24,6 +26,7 @@ State payload shape:
 - Delete column: posts `kanban:column:delete:request` (extension confirms).
 - Add card: dialog -> `kanban:card:create`.
 - Edit card: double click -> dialog -> `kanban:card:update`.
+- Parent/child changes: dialog -> `kanban:card:update` with the child's `parentId`.
 - Delete card: dialog -> `kanban:card:delete`.
 - Open card markdown in editor:
   - Card row "Open" button -> `kanban:card:openFile`.

@@ -95,6 +95,7 @@ export function serializeFrontMatter(
   const knownKeys = [
     "id",
     "title",
+    "parentId",
     "labels",
     "checklist",
     "due",

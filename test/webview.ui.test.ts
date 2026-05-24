@@ -41,6 +41,20 @@ const createWebviewDom = () => `
           <button id="addChecklistItem" type="button">Add</button>
         </div>
       </div>
+      <div class="relationship-section hidden" id="relationshipSection">
+        <div class="relationship-header"><span>Parent / Children</span></div>
+        <div id="parentCardRow" class="relationship-row"></div>
+        <div id="childCardList" class="relationship-list"></div>
+        <div class="relationship-actions">
+          <select id="parentCardSelect"></select>
+          <button id="setParentCard" type="button">Set Parent</button>
+        </div>
+        <div class="relationship-actions">
+          <select id="childCardSelect"></select>
+          <button id="attachChildCard" type="button">Attach Child</button>
+        </div>
+        <button id="createChildCard" type="button">New Child</button>
+      </div>
       <div class="label-section">
         <div class="label-header">
           <span>Labels</span>
@@ -153,6 +167,7 @@ describe("webview ui", () => {
           id: "card-1",
           title: "Task A",
           detail: "Detail A",
+          parentId: null,
           due: null,
           labels: [],
           checklist: [],
@@ -186,6 +201,7 @@ describe("webview ui", () => {
         title: "New task",
         detail: "details",
         due: "2026-03-10",
+        parentId: null,
         labels: [],
         checklist: [],
       },
@@ -228,6 +244,7 @@ describe("webview ui", () => {
           id: "card-1",
           title: "Task A",
           detail: "Detail A",
+          parentId: null,
           due: "2026-03-01",
           labels: [],
           checklist: [{ id: "item-1", text: "Review", done: false }],
@@ -251,10 +268,81 @@ describe("webview ui", () => {
         title: "Task A",
         detail: "Detail A",
         due: "2026-03-20",
+        parentId: null,
         labels: [],
         checklist: [{ id: "item-1", text: "Review", done: false }],
       },
     });
+  });
+
+  it("saves selected parent and child relationships from the card dialog", () => {
+    const state = {
+      ...baseState,
+      order: { todo: ["parent", "child", "new-parent"] },
+      cards: {
+        parent: {
+          id: "parent",
+          title: "Parent",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+        child: {
+          id: "child",
+          title: "Child",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+        "new-parent": {
+          id: "new-parent",
+          title: "New Parent",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+      },
+    };
+    renderState(state);
+
+    document
+      .querySelector<HTMLElement>('[data-card-id="parent"]')
+      ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    (document.getElementById("parentCardSelect") as HTMLSelectElement).value =
+      "new-parent";
+    (document.getElementById("childCardSelect") as HTMLSelectElement).value =
+      "child";
+    (document.getElementById("saveCard") as HTMLButtonElement).click();
+
+    const updates = api.postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === "kanban:card:update");
+    expect(updates).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          cardId: "parent",
+          parentId: "new-parent",
+        }),
+      }),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          cardId: "child",
+          parentId: "parent",
+        }),
+      }),
+    ]);
   });
 
   it("closes card dialog on Escape key", () => {

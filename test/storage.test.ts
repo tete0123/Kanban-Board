@@ -163,4 +163,36 @@ describe("storage with in-memory fs", () => {
     expect(state.labels).toEqual([]);
     expect(state.cards[cardId].labels).toEqual([]);
   });
+
+  it("stores parent-child relationships on child cards", async () => {
+    const fs = createInMemoryFileSystem();
+    const storage = createStorage(fs, "/workspace");
+
+    await storage.createCard({ title: "Parent", detail: "" });
+    let state = await storage.readState();
+    const parentId = Object.keys(state.cards)[0];
+
+    await storage.createCard({
+      title: "Child",
+      detail: "",
+      parentId,
+    });
+    state = await storage.readState();
+    const childId = Object.keys(state.cards).find((id) => id !== parentId);
+    expect(childId).toBeTruthy();
+    expect(state.cards[childId as string].parentId).toBe(parentId);
+
+    await expect(
+      storage.updateCard({
+        cardId: parentId,
+        title: "Parent",
+        detail: "",
+        parentId: childId,
+      })
+    ).rejects.toThrow("circular");
+
+    await storage.deleteCard({ cardId: parentId });
+    state = await storage.readState();
+    expect(state.cards[childId as string].parentId).toBeNull();
+  });
 });

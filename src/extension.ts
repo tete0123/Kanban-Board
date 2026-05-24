@@ -108,6 +108,24 @@ function getWebviewHtml(scriptUri: vscode.Uri, styleUri: vscode.Uri): string {
               <button id="addChecklistItem" type="button">Add</button>
             </div>
           </div>
+          <div class="relationship-section hidden" id="relationshipSection">
+            <div class="relationship-header">
+              <span>Parent / Children</span>
+            </div>
+            <div id="parentCardRow" class="relationship-row"></div>
+            <div id="childCardList" class="relationship-list"></div>
+            <div class="relationship-actions">
+              <select id="parentCardSelect"></select>
+              <button id="setParentCard" type="button">Set Parent</button>
+            </div>
+            <div class="relationship-actions">
+              <select id="childCardSelect"></select>
+              <button id="attachChildCard" type="button">Attach Child</button>
+            </div>
+            <button id="createChildCard" class="secondary" type="button">
+              New Child
+            </button>
+          </div>
           <div class="label-section">
             <div class="label-header">
               <span>Labels</span>

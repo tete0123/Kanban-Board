@@ -35,7 +35,7 @@ Example:
 ---
 id: ab12cd
 title: Fix login
-
+parentId: null
 due: 2024-12-01
 createdAt: 2024-10-01T10:00:00.000Z
 updatedAt: 2024-10-02T12:00:00.000Z
@@ -46,6 +46,7 @@ Detailed description here.
 Rules:
 - `title` is required and validated on create/update.
 - If `title` is missing, the first non-empty line of the body is used.
+- `parentId` can point to another card when this card is a child card.
 - `due` can be `null`.
 - `createdAt` and `updatedAt` are ISO timestamps.
 
@@ -53,6 +54,7 @@ Rules:
 `readState()` reconciles index and card files:
 - Removes card IDs from `order` if the file is missing.
 - Adds card files not referenced by `order` into the first column.
+- Removes missing, invalid, or circular `parentId` references.
 - Writes a corrected `index.json` when it detects drift.
 
 ## ID strategy

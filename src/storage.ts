@@ -15,6 +15,7 @@ export type CardData = {
   id: string;
   title: string;
   detail: string;
+  parentId: string | null;
   due: string | null;
   labels: string[];
   checklist: ChecklistItem[];
@@ -161,6 +162,9 @@ export function createStorage<PathType>(
   const serializeChecklist = (items: ChecklistItem[]): string | null =>
     items.length > 0 ? JSON.stringify(items) : null;
 
+  const normalizeParentId = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+
   const loadCard = async (cardId: string): Promise<CardData | null> => {
     const { cardsDir } = getStoragePaths();
     const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
@@ -184,12 +188,14 @@ export function createStorage<PathType>(
           ? meta.updatedAt
           : new Date(stat.mtime).toISOString();
       const due = typeof meta.due === "string" ? meta.due : null;
+      const parentId = normalizeParentId(meta.parentId);
       const labels = parseLabelList(meta.labels ?? null);
       const checklist = normalizeChecklistItems(meta.checklist ?? null);
       return {
         id: cardId,
         title,
         detail,
+        parentId,
         due,
         labels,
         checklist,
@@ -261,6 +267,22 @@ export function createStorage<PathType>(
       }
     }
 
+    const parentMap = new Map(
+      Object.values(cards).map((card) => [card.id, card.parentId] as const)
+    );
+    for (const card of Object.values(cards)) {
+      if (
+        card.parentId &&
+        (!cards[card.parentId] ||
+          card.parentId === card.id ||
+          wouldCreateCycle(card.id, card.parentId, parentMap))
+      ) {
+        card.parentId = null;
+        parentMap.set(card.id, null);
+        await updateCardParentId(card.id, null);
+      }
+    }
+
     return { columns: index.columns, order, cards, labels: index.labels };
   };
 
@@ -269,12 +291,16 @@ export function createStorage<PathType>(
     const title = typeof data.title === "string" ? data.title : "";
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
+    const parentId = normalizeParentId(data.parentId);
     const labels = normalizeLabelIds(data.labels);
     const checklist = normalizeChecklistItems(data.checklist);
     if (!title.trim()) {
       throw new Error("Title is empty.");
     }
     const index = await readIndex();
+    if (parentId) {
+      await validateParentAssignment(null, parentId);
+    }
     const safeColumnId =
       index.columns.find((column) => column.id === columnId)?.id ??
       index.columns[0]?.id ??
@@ -290,6 +316,9 @@ export function createStorage<PathType>(
       createdAt: now,
       updatedAt: now,
     };
+    if (parentId) {
+      meta.parentId = parentId;
+    }
     const content = serializeFrontMatter(meta, detail);
     const { cardsDir } = getStoragePaths();
     const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
@@ -307,6 +336,7 @@ export function createStorage<PathType>(
     const title = typeof data.title === "string" ? data.title : "";
     const detail = typeof data.detail === "string" ? data.detail : "";
     const due = typeof data.due === "string" ? data.due : null;
+    const parentId = normalizeParentId(data.parentId);
     const labels = normalizeLabelIds(data.labels);
     const checklist = normalizeChecklistItems(data.checklist);
     if (!title.trim()) {
@@ -322,9 +352,15 @@ export function createStorage<PathType>(
       throw new Error("Card not found.");
     }
     const now = new Date().toISOString();
+    await validateParentAssignment(cardId, parentId);
     const meta = { ...parsed.meta };
     meta.id = cardId;
     meta.title = title.trim();
+    if (parentId) {
+      meta.parentId = parentId;
+    } else {
+      delete meta.parentId;
+    }
     meta.labels = labels.length > 0 ? labels.join(",") : null;
     meta.checklist = serializeChecklist(checklist);
     meta.due = due && due.trim() ? due : null;
@@ -349,6 +385,7 @@ export function createStorage<PathType>(
       );
     });
     await writeIndex(index);
+    await orphanChildrenOf([cardId]);
     await deleteCardFiles([cardId]);
   };
 
@@ -458,6 +495,7 @@ export function createStorage<PathType>(
     index.columns.splice(removeIndex, 1);
     delete index.order[columnId];
     await writeIndex(index);
+    await orphanChildrenOf(removedCards);
     await deleteCardFiles(removedCards);
   };
 
@@ -470,6 +508,78 @@ export function createStorage<PathType>(
       } catch {
         // Ignore missing file.
       }
+    }
+  };
+
+  const updateCardParentId = async (
+    cardId: string,
+    parentId: string | null
+  ): Promise<void> => {
+    const { cardsDir } = getStoragePaths();
+    const cardFile = fs.joinPath(cardsDir, `${cardId}.md`);
+    let parsed = { meta: {} as Record<string, string | null>, body: "" };
+    try {
+      const content = await fs.readFile(cardFile);
+      parsed = parseFrontMatter(Buffer.from(content).toString("utf8"));
+    } catch {
+      return;
+    }
+    const meta: Record<string, string | null> = { ...parsed.meta };
+    if (parentId) {
+      meta.parentId = parentId;
+    } else {
+      delete meta.parentId;
+    }
+    meta.updatedAt = new Date().toISOString();
+    const content = serializeFrontMatter(meta, parsed.body);
+    await fs.writeFile(cardFile, Buffer.from(content, "utf8"));
+  };
+
+  const orphanChildrenOf = async (parentIds: string[]): Promise<void> => {
+    const parents = new Set(parentIds);
+    if (parents.size === 0) {
+      return;
+    }
+    const cardIds = await listCardIds();
+    for (const cardId of cardIds) {
+      if (parents.has(cardId)) {
+        continue;
+      }
+      const card = await loadCard(cardId);
+      if (card?.parentId && parents.has(card.parentId)) {
+        await updateCardParentId(cardId, null);
+      }
+    }
+  };
+
+  const getParentMap = async (): Promise<Map<string, string | null>> => {
+    const cardIds = await listCardIds();
+    const parentMap = new Map<string, string | null>();
+    for (const cardId of cardIds) {
+      const card = await loadCard(cardId);
+      if (card) {
+        parentMap.set(cardId, card.parentId);
+      }
+    }
+    return parentMap;
+  };
+
+  const validateParentAssignment = async (
+    cardId: string | null,
+    parentId: string | null
+  ): Promise<void> => {
+    if (!parentId) {
+      return;
+    }
+    const parentMap = await getParentMap();
+    if (!parentMap.has(parentId)) {
+      throw new Error("Parent card not found.");
+    }
+    if (cardId && parentId === cardId) {
+      throw new Error("A card cannot be its own parent.");
+    }
+    if (cardId && wouldCreateCycle(cardId, parentId, parentMap)) {
+      throw new Error("Cannot create a circular parent-child relationship.");
     }
   };
 
@@ -597,4 +707,24 @@ export function createStorage<PathType>(
 
 function generateId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function wouldCreateCycle(
+  cardId: string,
+  parentId: string,
+  parentMap: Map<string, string | null>
+): boolean {
+  let current: string | null = parentId;
+  const seen = new Set<string>();
+  while (current) {
+    if (current === cardId) {
+      return true;
+    }
+    if (seen.has(current)) {
+      return true;
+    }
+    seen.add(current);
+    current = parentMap.get(current) ?? null;
+  }
+  return false;
 }

@@ -26,7 +26,7 @@ stored in your workspace and can be versioned with your project.
 2. Run `Kanban: Open Board`.
 3. Use `+ Add Column` to add columns.
 4. Use `+ Add` in a column to create cards.
-5. Double click a card to edit it.
+5. Double click a card to edit it, add checklist items, or manage parent/child relationships.
 
 ## Commands
 

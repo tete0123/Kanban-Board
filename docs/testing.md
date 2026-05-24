@@ -9,8 +9,9 @@
 
 ## Current coverage
 - `test/core.test.ts` covers core helpers (front matter, slugify, normalization).
-- `test/storage.test.ts` covers storage CRUD using an in-memory filesystem.
+- `test/storage.test.ts` covers storage CRUD using an in-memory filesystem, including parent-child persistence and orphaning child cards when a parent is deleted.
+- `test/webview.ui.test.ts` covers jsdom webview behavior, including saving selected parent and child relationships from the card dialog.
 
 ## Gaps / risk areas
-- Webview UI logic is not unit-tested.
 - Extension message routing is not integration-tested.
+- Visual layout behavior still needs manual verification in the VS Code webview.

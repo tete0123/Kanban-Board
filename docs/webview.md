@@ -20,6 +20,16 @@ State payload shape:
 - Dialog: create/edit card (`Open .md` is shown only in edit mode)
 - Parent/children section in the card dialog for assigning, removing, and opening directly related cards
 
+## Parent/children dialog behavior
+- The relationship section is shown when editing an existing card and hidden while creating a normal card.
+- `Set Parent` assigns the selected card as the edited card's parent.
+- `Attach Child` assigns the edited card as the selected card's parent.
+- `New Child` opens the create-card dialog in the edited card's current column and preselects the edited card as the new card's parent.
+- Related card titles in the section open that card's edit dialog.
+- `Remove` clears the `parentId` on the child side of the relationship.
+- Parent choices exclude the edited card and its descendants; child choices exclude the edited card and its ancestors, preventing circular relationships from the UI.
+- Cards on the board show `Parent`, `Children: N`, or both when they have direct relationships.
+
 ## User interactions
 - Add column: posts `kanban:column:create:request` (extension prompts for name).
 - Edit column title: posts `kanban:column:update` on change.

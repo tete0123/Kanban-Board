@@ -13,12 +13,14 @@
 - `src/storage.ts`
   - Encapsulates filesystem layout and all CRUD operations.
   - Normalizes and repairs state if files drift from the index.
+  - Validates parent-child assignments and clears child `parentId` values when parent cards are removed.
 - `src/core.ts`
   - Pure helpers: slugify, front matter, default columns, and index normalization.
 - `src/webview.ts`
   - DOM rendering, drag-and-drop, dialogs, search.
   - Sends message events and applies new state.
   - Provides "Open" / "Open .md" actions to open a card markdown file in editor.
+  - Renders parent/children controls and derives direct child cards from the state payload.
   - Re-fetches state on focus/visibility restore to reflect external file edits.
 
 ## Data flow
@@ -33,7 +35,7 @@ User Action -> Webview JS -> postMessage({ type, data })
 Webview -> Extension
 - `kanban:init`
 - `kanban:card:create`
-- `kanban:card:update`
+- `kanban:card:update` (also used for parent-child assignments through `parentId`)
 - `kanban:card:delete`
 - `kanban:card:move`
 - `kanban:card:reorder`

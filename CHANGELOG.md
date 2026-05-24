@@ -3,7 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.0.8] - 2026-05-24
 - Added card checklists with editable items and board progress summaries
+- Added parent/child card relationships for splitting large cards into direct child cards
+- Added parent/child controls in the card dialog, including setting a parent, attaching an existing child, creating a new child card, removing relationships, and navigating between directly related cards
+- Added board summaries for cards with a parent or child cards
+- Fixed Parent/Children selectors so long card titles no longer expand the controls and are truncated with an ellipsis
 
 ## [1.0.7] - 2026-03-12
 - Improved card text rendering in horizontal list layout by enabling line wrapping for long titles/details

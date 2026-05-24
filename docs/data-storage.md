@@ -47,6 +47,10 @@ Rules:
 - `title` is required and validated on create/update.
 - If `title` is missing, the first non-empty line of the body is used.
 - `parentId` can point to another card when this card is a child card.
+- Parent-child relationships are canonical on the child card only; parent cards do not store child ID lists.
+- A card cannot be its own parent and circular parent-child relationships are rejected.
+- When a parent card is deleted, direct child cards are kept and their `parentId` is removed.
+- When a column is deleted, remaining cards that pointed to any deleted card have their `parentId` removed.
 - `due` can be `null`.
 - `createdAt` and `updatedAt` are ISO timestamps.
 

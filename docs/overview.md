@@ -13,6 +13,12 @@ This extension provides a lightweight Kanban board inside a VS Code webview. The
 3. The extension loads state from `.vscode-kanban/` and posts it back.
 4. User edits columns/cards; webview posts mutations; extension updates storage and returns updated state.
 
+## Parent-child card relationships
+- A card can have one direct parent card and any number of direct child cards.
+- Parent-child relationships support splitting a large card into smaller cards while keeping navigation available from either side.
+- The board shows a compact relationship summary on cards that have a parent or child cards.
+- Relationship changes do not move cards between columns and do not imply completion or progress.
+
 ## Key files
 - `src/extension.ts` - extension activation and message router.
 - `src/storage.ts` - persistence layer and state aggregation.

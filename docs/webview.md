@@ -35,7 +35,7 @@ State payload shape:
 - Edit column title: posts `kanban:column:update` on change.
 - Delete column: posts `kanban:column:delete:request` (extension confirms).
 - Add card: dialog -> `kanban:card:create`.
-- Edit card: double click -> dialog -> `kanban:card:update`.
+- Edit card: double click -> dialog -> `kanban:card:update`; the Title input is focused with the cursor and visible text at the start of the title.
 - Parent/child changes: dialog -> `kanban:card:update` with the child's `parentId`.
 - Delete card: dialog -> `kanban:card:delete`.
 - Open card markdown in editor:

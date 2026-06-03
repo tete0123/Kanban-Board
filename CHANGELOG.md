@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Improved the edit card dialog so the Title field focuses and shows the start of long titles when opened.
 
 ## [1.0.8] - 2026-05-24
 - Added card checklists with editable items and board progress summaries

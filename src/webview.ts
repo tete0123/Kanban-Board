@@ -381,6 +381,8 @@ const openEditDialog = (cardId: string) => {
   cardDue.value = card.due ?? "";
   backdrop.classList.remove("hidden");
   cardTitle.focus();
+  cardTitle.setSelectionRange(0, 0);
+  cardTitle.scrollLeft = 0;
   renderLabelList();
   renderChecklistList();
   renderRelationshipSection();

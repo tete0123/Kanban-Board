@@ -275,6 +275,37 @@ describe("webview ui", () => {
     });
   });
 
+  it("focuses and shows the start of the title when editing a card", () => {
+    const state = {
+      ...baseState,
+      order: { todo: ["card-1"] },
+      cards: {
+        "card-1": {
+          id: "card-1",
+          title: "Task A",
+          detail: "Detail A",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+      },
+    };
+    renderState(state);
+
+    document
+      .querySelector(".card")
+      ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+
+    const title = document.getElementById("cardTitle") as HTMLInputElement;
+    expect(document.activeElement).toBe(title);
+    expect(title.selectionStart).toBe(0);
+    expect(title.selectionEnd).toBe(0);
+    expect(title.scrollLeft).toBe(0);
+  });
+
   it("saves selected parent and child relationships from the card dialog", () => {
     const state = {
       ...baseState,

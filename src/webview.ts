@@ -1414,6 +1414,7 @@ const buildColumnElement = (
   const columnElement = document.createElement("section");
   columnElement.className = "column";
   columnElement.dataset.column = column.id;
+  const columnCardIds = state.order[column.id] ?? [];
 
   const header = document.createElement("div");
   header.className = "column-header";
@@ -1476,10 +1477,43 @@ const buildColumnElement = (
     });
   });
 
-  header.appendChild(handleButton);
-  header.appendChild(titleInput);
-  header.appendChild(addButton);
-  header.appendChild(deleteButton);
+  const clearCardsButton = document.createElement("button");
+  clearCardsButton.className = "clear-column-cards";
+  clearCardsButton.dataset.column = column.id;
+  clearCardsButton.textContent = "Clear";
+  clearCardsButton.type = "button";
+  clearCardsButton.disabled = columnCardIds.length === 0;
+  clearCardsButton.title =
+    columnCardIds.length === 0 ? "No cards to delete" : "Delete all cards";
+  clearCardsButton.addEventListener("click", () => {
+    if (columnCardIds.length === 0) {
+      return;
+    }
+    const cardText = columnCardIds.length === 1 ? "card" : "cards";
+    openConfirm(
+      `Delete ${columnCardIds.length} ${cardText} from "${column.title}"?`,
+      () => {
+        vscode.postMessage({
+          type: "kanban:column:clearCards",
+          data: { columnId: column.id },
+        });
+      }
+    );
+  });
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "column-title-row";
+  titleRow.appendChild(handleButton);
+  titleRow.appendChild(titleInput);
+
+  const actionRow = document.createElement("div");
+  actionRow.className = "column-actions";
+  actionRow.appendChild(addButton);
+  actionRow.appendChild(clearCardsButton);
+  actionRow.appendChild(deleteButton);
+
+  header.appendChild(titleRow);
+  header.appendChild(actionRow);
 
   const list = document.createElement("div");
   list.className = "card-list";
@@ -1533,8 +1567,7 @@ const buildColumnElement = (
     }
   });
 
-  const ids = state.order[column.id] ?? [];
-  ids.forEach((cardId) => {
+  columnCardIds.forEach((cardId) => {
     const card = state.cards[cardId];
     if (!card) {
       return;

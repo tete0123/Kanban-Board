@@ -3,7 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.0.9] - 2026-06-04
 - Improved the edit card dialog so the Title field focuses and shows the start of long titles when opened.
+- Added column card clearing to delete all cards from a column while keeping the column.
+- Added optional Markdown export before clearing a column, including `kanban.clear.exportBeforeDelete` and `kanban.clear.exportFolder` settings.
+- Improved column header layout so action buttons no longer hide the column name.
 
 ## [1.0.8] - 2026-05-24
 - Added card checklists with editable items and board progress summaries

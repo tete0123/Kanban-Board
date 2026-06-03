@@ -12,6 +12,14 @@ _Avoid_: Task, ticket
 A user-defined grouping for cards on the board. A column name does not by itself define whether a card is complete.
 _Avoid_: Status, completion state
 
+**Column Card Clearing**:
+An action that removes all cards in a column while keeping the column itself on the board. Column card clearing may first preserve those cards as a single Markdown file.
+_Avoid_: Column deletion, reset
+
+**Column Card Export**:
+An action that preserves all cards in a column as one Markdown file.
+_Avoid_: Backup, archive
+
 **Parent-Child Card Relationship**:
 A hierarchical relationship where one parent card is split into one or more child cards. Each child card has at most one parent card, child cards may themselves have child cards, and circular relationships are not allowed. A child card may be created from its parent card or attached to a parent card after both cards already exist. A card shows only its direct parent card and direct child cards, without deriving completion or progress from the relationship. Moving a card between columns does not change this relationship. When a parent card is deleted, its child cards remain as cards without a parent card.
 _Avoid_: Card link, dependency, related card

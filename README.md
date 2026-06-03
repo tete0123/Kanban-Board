@@ -12,6 +12,7 @@ stored in your workspace and can be versioned with your project.
 ## Features
 
 - Create, rename, reorder, and delete columns (drag the handle to reorder).
+- Clear all cards from a column while keeping the column, with optional Markdown export before deletion.
 - Create, edit (double click), delete, and move cards with drag and drop.
 - Display columns in a horizontal row with side scrolling, while long card text wraps within each column.
 - Set optional due dates on cards.
@@ -31,6 +32,23 @@ stored in your workspace and can be versioned with your project.
 ## Commands
 
 - `Kanban: Open Board` (`kanban.openBoard`) in the Command Pallete (`ctrl+shift+P`).
+
+## Settings
+
+- `kanban.clear.exportBeforeDelete`: export all cards in the column to `yyyymmdd.md` before clearing it.
+- `kanban.clear.exportFolder`: folder for Markdown files exported before clearing a column. Use an absolute path or a path relative to the workspace root.
+
+Example workspace `settings.json`:
+
+```json
+{
+  "kanban.clear.exportBeforeDelete": true,
+  "kanban.clear.exportFolder": "exports/kanban"
+}
+```
+
+Open it from the Command Palette with `Preferences: Open Workspace Settings (JSON)`.
+With the example above, clearing a column writes files like `exports/kanban/20260604.md` before deleting the column's cards.
 
 ## Issues / Feedback
 

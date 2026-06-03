@@ -270,6 +270,19 @@ async function handleMessage(message: {
     case "kanban:column:delete":
       await storage.deleteColumn(message.data ?? {});
       return await storage.readState();
+    case "kanban:column:clearCards":
+      if (isExportBeforeColumnClearEnabled()) {
+        const exported = await exportColumnCardsBeforeClear(
+          storage,
+          root,
+          message.data ?? {}
+        );
+        if (!exported) {
+          return null;
+        }
+      }
+      await storage.clearColumnCards(message.data ?? {});
+      return await storage.readState();
     case "kanban:label:create":
       await storage.createLabel(message.data ?? {});
       return await storage.readState();
@@ -300,6 +313,97 @@ async function handleMessage(message: {
     }
     default:
       return null;
+  }
+}
+
+function isExportBeforeColumnClearEnabled(): boolean {
+  return vscode.workspace
+    .getConfiguration("kanban")
+    .get<boolean>("clear.exportBeforeDelete", false);
+}
+
+async function exportColumnCardsBeforeClear(
+  storage: ReturnType<typeof createStorage<vscode.Uri>>,
+  root: vscode.Uri,
+  data: Record<string, unknown>
+): Promise<boolean> {
+  const columnId = typeof data.columnId === "string" ? data.columnId : null;
+  if (!columnId) {
+    throw new Error("Missing column ID.");
+  }
+  const exportData = await storage.getColumnCardsMarkdown({
+    columnId,
+    exportedAt: new Date(),
+  });
+  const folder = await getColumnClearExportFolder(root);
+  if (!folder) {
+    return false;
+  }
+  await vscode.workspace.fs.createDirectory(folder);
+  const target = vscode.Uri.joinPath(folder, exportData.fileName);
+  if (await fileExists(target)) {
+    const confirmed = await vscode.window.showWarningMessage(
+      `Overwrite ${exportData.fileName}?`,
+      { modal: true },
+      "Overwrite"
+    );
+    if (confirmed !== "Overwrite") {
+      return false;
+    }
+  }
+  await vscode.workspace.fs.writeFile(
+    target,
+    Buffer.from(exportData.content, "utf8")
+  );
+  return true;
+}
+
+async function getColumnClearExportFolder(
+  root: vscode.Uri
+): Promise<vscode.Uri | null> {
+  const config = vscode.workspace.getConfiguration("kanban");
+  const configured = config.get<string>("clear.exportFolder", "").trim();
+  if (configured) {
+    return resolveExportFolder(root, configured);
+  }
+
+  const folders = await vscode.window.showOpenDialog({
+    title: "Select a folder for exported Markdown files",
+    openLabel: "Use Folder",
+    defaultUri: root,
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+  });
+  const folder = folders?.[0];
+  if (!folder) {
+    return null;
+  }
+  await config.update(
+    "clear.exportFolder",
+    folder.scheme === "file" ? folder.fsPath : folder.toString(),
+    vscode.ConfigurationTarget.Workspace
+  );
+  return folder;
+}
+
+function resolveExportFolder(root: vscode.Uri, value: string): vscode.Uri {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
+    return vscode.Uri.parse(value);
+  }
+  if (path.isAbsolute(value)) {
+    return vscode.Uri.file(value);
+  }
+  const segments = value.split(/[\\/]+/).filter((segment) => segment.length > 0);
+  return segments.length > 0 ? vscode.Uri.joinPath(root, ...segments) : root;
+}
+
+async function fileExists(uri: vscode.Uri): Promise<boolean> {
+  try {
+    await vscode.workspace.fs.stat(uri);
+    return true;
+  } catch {
+    return false;
   }
 }
 

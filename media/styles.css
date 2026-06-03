@@ -132,11 +132,19 @@ body {
 
 .column-header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 12px;
-  flex-wrap: wrap;
   position: relative;
+}
+
+.column-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .column-title {
@@ -149,6 +157,14 @@ body {
   min-width: 0;
   position: relative;
   z-index: 1;
+}
+
+.column-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 body.dialog-open .column-title {
@@ -204,7 +220,18 @@ body.dialog-open .search-widget {
   white-space: nowrap;
 }
 
-.delete-column:disabled {
+.clear-column-cards {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.delete-column:disabled,
+.clear-column-cards:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }

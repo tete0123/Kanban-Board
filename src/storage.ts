@@ -36,6 +36,12 @@ export type StatePayload = {
   labels: Label[];
 };
 
+export type ColumnCardsMarkdownExport = {
+  fileName: string;
+  content: string;
+  cardCount: number;
+};
+
 export type FileStat = {
   ctime: number;
   mtime: number;
@@ -499,6 +505,60 @@ export function createStorage<PathType>(
     await deleteCardFiles(removedCards);
   };
 
+  const clearColumnCards = async (
+    data: Record<string, unknown>
+  ): Promise<void> => {
+    const columnId = typeof data.columnId === "string" ? data.columnId : null;
+    if (!columnId) {
+      throw new Error("Missing column ID.");
+    }
+    const index = await readIndex();
+    const column = index.columns.find((item) => item.id === columnId);
+    if (!column) {
+      throw new Error("Column not found.");
+    }
+    const removedCards = Array.from(new Set(index.order[columnId] ?? []));
+    index.order[columnId] = [];
+    await writeIndex(index);
+    await orphanChildrenOf(removedCards);
+    await deleteCardFiles(removedCards);
+  };
+
+  const getColumnCardsMarkdown = async (data: {
+    columnId: string;
+    exportedAt?: Date;
+  }): Promise<ColumnCardsMarkdownExport> => {
+    const columnId = data.columnId;
+    if (!columnId) {
+      throw new Error("Missing column ID.");
+    }
+    const state = await readState();
+    const column = state.columns.find((item) => item.id === columnId);
+    if (!column) {
+      throw new Error("Column not found.");
+    }
+    const cardIds = state.order[columnId] ?? [];
+    if (cardIds.length === 0) {
+      throw new Error("Column has no cards.");
+    }
+    const exportedAt = data.exportedAt ?? new Date();
+    const dateText = formatDateForFileName(exportedAt);
+    const labelMap = new Map(state.labels.map((label) => [label.id, label.name]));
+    const content = renderColumnCardsMarkdown({
+      columnTitle: column.title,
+      dateText,
+      cards: cardIds
+        .map((cardId) => state.cards[cardId])
+        .filter((card): card is CardData => Boolean(card)),
+      labelMap,
+    });
+    return {
+      fileName: `${dateText}.md`,
+      content,
+      cardCount: cardIds.length,
+    };
+  };
+
   const deleteCardFiles = async (cardIds: string[]): Promise<void> => {
     const { cardsDir } = getStoragePaths();
     for (const id of cardIds) {
@@ -699,6 +759,8 @@ export function createStorage<PathType>(
     reorderColumns,
     createColumn,
     deleteColumn,
+    clearColumnCards,
+    getColumnCardsMarkdown,
     createLabel,
     updateLabel,
     deleteLabel,
@@ -707,6 +769,60 @@ export function createStorage<PathType>(
 
 function generateId(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function formatDateForFileName(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function renderColumnCardsMarkdown(data: {
+  columnTitle: string;
+  dateText: string;
+  cards: CardData[];
+  labelMap: Map<string, string>;
+}): string {
+  const lines = [
+    `# ${data.columnTitle}`,
+    "",
+    `Exported: ${data.dateText}`,
+    `Cards: ${data.cards.length}`,
+    "",
+  ];
+
+  data.cards.forEach((card, index) => {
+    lines.push(`## ${index + 1}. ${card.title}`, "");
+    if (card.due) {
+      lines.push(`- Due: ${card.due}`);
+    }
+    const labels = card.labels
+      .map((labelId) => data.labelMap.get(labelId) ?? labelId)
+      .filter((label) => label.length > 0);
+    if (labels.length > 0) {
+      lines.push(`- Labels: ${labels.join(", ")}`);
+    }
+    if (card.checklist.length > 0) {
+      const doneCount = card.checklist.filter((item) => item.done).length;
+      lines.push(`- Checklist: ${doneCount}/${card.checklist.length}`);
+    }
+    if (card.due || labels.length > 0 || card.checklist.length > 0) {
+      lines.push("");
+    }
+    if (card.detail.trim()) {
+      lines.push(card.detail.trim(), "");
+    }
+    if (card.checklist.length > 0) {
+      lines.push("### Checklist", "");
+      card.checklist.forEach((item) => {
+        lines.push(`- [${item.done ? "x" : " "}] ${item.text}`);
+      });
+      lines.push("");
+    }
+  });
+
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function wouldCreateCycle(

@@ -195,4 +195,76 @@ describe("storage with in-memory fs", () => {
     state = await storage.readState();
     expect(state.cards[childId as string].parentId).toBeNull();
   });
+
+  it("clears cards from one column while keeping the column", async () => {
+    const fs = createInMemoryFileSystem();
+    const storage = createStorage(fs, "/workspace");
+
+    await storage.createCard({ columnId: "todo", title: "Parent", detail: "" });
+    let state = await storage.readState();
+    const parentId = Object.values(state.cards).find(
+      (card) => card.title === "Parent"
+    )?.id;
+    expect(parentId).toBeTruthy();
+
+    await storage.createCard({ columnId: "todo", title: "Sibling", detail: "" });
+    await storage.createCard({
+      columnId: "done",
+      title: "Child",
+      detail: "",
+      parentId,
+    });
+
+    await storage.clearColumnCards({ columnId: "todo" });
+    state = await storage.readState();
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      "todo",
+      "doing",
+      "done",
+    ]);
+    expect(state.order.todo).toEqual([]);
+    expect(Object.values(state.cards).map((card) => card.title)).toEqual([
+      "Child",
+    ]);
+    expect(Object.values(state.cards)[0]?.parentId).toBeNull();
+  });
+
+  it("exports all cards in a column to one markdown file", async () => {
+    const fs = createInMemoryFileSystem();
+    const storage = createStorage(fs, "/workspace");
+
+    await storage.createLabel({ name: "Bug", color: "#ff0000" });
+    const stateWithLabel = await storage.readState();
+    const labelId = stateWithLabel.labels[0]?.id;
+
+    await storage.createCard({
+      columnId: "todo",
+      title: "First",
+      detail: "First detail",
+      due: "2026-06-10",
+      labels: [labelId],
+      checklist: [{ id: "check-1", text: "Review", done: true }],
+    });
+    await storage.createCard({
+      columnId: "todo",
+      title: "Second",
+      detail: "",
+    });
+
+    const exported = await storage.getColumnCardsMarkdown({
+      columnId: "todo",
+      exportedAt: new Date(2026, 5, 4),
+    });
+
+    expect(exported.fileName).toBe("20260604.md");
+    expect(exported.cardCount).toBe(2);
+    expect(exported.content).toContain("# TODO");
+    expect(exported.content).toContain("Exported: 20260604");
+    expect(exported.content).toContain("## 1. First");
+    expect(exported.content).toContain("- Due: 2026-06-10");
+    expect(exported.content).toContain("- Labels: Bug");
+    expect(exported.content).toContain("- [x] Review");
+    expect(exported.content).toContain("## 2. Second");
+  });
 });

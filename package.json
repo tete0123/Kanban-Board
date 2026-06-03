@@ -3,7 +3,7 @@
   "displayName": "Simple Kanban Board",
   "description": "Simple kanban board for TODO management.",
   "icon": "icon.png",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "publisher": "te-dev",
   "repository": {
     "type": "git",
@@ -38,7 +38,22 @@
         "command": "kanban.openBoard",
         "title": "Kanban: Open Board"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Kanban Board",
+      "properties": {
+        "kanban.clear.exportBeforeDelete": {
+          "type": "boolean",
+          "default": false,
+          "description": "Export all cards in a column to one Markdown file before clearing the column."
+        },
+        "kanban.clear.exportFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Folder for Markdown files exported before clearing a column. Use an absolute path or a path relative to the workspace root."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

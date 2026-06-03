@@ -9,6 +9,7 @@
   - Registers command `kanban.openBoard` and creates a webview panel.
   - Builds webview HTML and wires message handling.
   - Routes webview messages to storage operations and returns updated state.
+  - Writes a Markdown export before clearing column cards when configured.
   - Handles `kanban:card:openFile` to open `.vscode-kanban/cards/<cardId>.md` in VS Code editor.
 - `src/storage.ts`
   - Encapsulates filesystem layout and all CRUD operations.
@@ -43,6 +44,7 @@ Webview -> Extension
 - `kanban:column:create`
 - `kanban:column:create:request` (shows VS Code input box)
 - `kanban:column:update`
+- `kanban:column:clearCards`
 - `kanban:column:delete`
 - `kanban:column:delete:request` (shows confirmation dialog)
 - `kanban:column:reorder`

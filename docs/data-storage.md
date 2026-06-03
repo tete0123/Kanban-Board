@@ -50,6 +50,9 @@ Rules:
 - Parent-child relationships are canonical on the child card only; parent cards do not store child ID lists.
 - A card cannot be its own parent and circular parent-child relationships are rejected.
 - When a parent card is deleted, direct child cards are kept and their `parentId` is removed.
+- When a column is cleared, cards in that column are deleted while the column remains.
+- If `kanban.clear.exportBeforeDelete` is enabled, clearing a column first writes the column's cards into one Markdown file named `yyyymmdd.md` in `kanban.clear.exportFolder`.
+- Relative `kanban.clear.exportFolder` values are resolved from the workspace root. Missing export folders are created before writing.
 - When a column is deleted, remaining cards that pointed to any deleted card have their `parentId` removed.
 - `due` can be `null`.
 - `createdAt` and `updatedAt` are ISO timestamps.

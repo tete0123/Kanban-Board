@@ -185,6 +185,50 @@ describe("webview ui", () => {
     expect(document.querySelector(".card .due")?.textContent).toContain("Due: None");
   });
 
+  it("confirms before clearing all cards from a column", () => {
+    const state = {
+      ...baseState,
+      order: { todo: ["card-1", "card-2"] },
+      cards: {
+        "card-1": {
+          id: "card-1",
+          title: "Task A",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+        "card-2": {
+          id: "card-2",
+          title: "Task B",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+      },
+    };
+
+    renderState(state);
+    (document.querySelector(".clear-column-cards") as HTMLButtonElement).click();
+
+    expect(document.getElementById("confirmMessage")?.textContent).toBe(
+      'Delete 2 cards from "Todo"?'
+    );
+    (document.getElementById("confirmOk") as HTMLButtonElement).click();
+
+    expect(postMessageOf(api, "kanban:column:clearCards")).toEqual({
+      type: "kanban:column:clearCards",
+      data: { columnId: "todo" },
+    });
+  });
+
   it("posts kanban:card:create with due date from dialog", () => {
     renderState(baseState);
 

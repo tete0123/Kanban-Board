@@ -33,6 +33,7 @@ State payload shape:
 ## User interactions
 - Add column: posts `kanban:column:create:request` (extension prompts for name).
 - Edit column title: posts `kanban:column:update` on change.
+- Clear column cards: confirms in the webview, then posts `kanban:column:clearCards`; if `kanban.clear.exportBeforeDelete` is enabled, the extension writes an export file to `kanban.clear.exportFolder` before deleting cards.
 - Delete column: posts `kanban:column:delete:request` (extension confirms).
 - Add card: dialog -> `kanban:card:create`.
 - Edit card: double click -> dialog -> `kanban:card:update`; the Title input is focused with the cursor and visible text at the start of the title.

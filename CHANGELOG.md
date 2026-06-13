@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-06-13
+- Added horizontal board auto-scroll when dragging cards or columns near the left or right edge of the webview.
+- Kept vertical card-list auto-scroll active while moving cards between off-screen columns.
+
 ## [1.0.9] - 2026-06-04
 - Improved the edit card dialog so the Title field focuses and shows the start of long titles when opened.
 - Added column card clearing to delete all cards from a column while keeping the column.

@@ -44,6 +44,7 @@ State payload shape:
   - Edit dialog "Open .md" button -> `kanban:card:openFile`.
 - Drag cards: `kanban:card:reorder` (same column) or `kanban:card:move` (different column).
 - Drag columns: `kanban:column:reorder`.
+- Drag auto-scroll: while dragging a card or column over the board, holding the pointer within 60px of a viewport side scrolls the board horizontally at a constant speed. Leaving the board stops horizontal auto-scroll; vertical card-list auto-scroll remains active.
 
 ## State refresh after external edit
 - When the webview regains focus (or becomes visible), it posts `kanban:init` again.

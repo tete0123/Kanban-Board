@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type PostedMessage = {
   type: string;
@@ -147,15 +147,29 @@ const baseState = {
 
 describe("webview ui", () => {
   let api: MockApi;
+  let animationFrameCallback: FrameRequestCallback | null;
 
   beforeEach(async () => {
     vi.resetModules();
+    animationFrameCallback = null;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        animationFrameCallback = callback;
+        return 1;
+      })
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
     document.body.innerHTML = createWebviewDom();
     window.alert = vi.fn();
     api = { postMessage: vi.fn<[PostedMessage], void>() };
     (globalThis as typeof globalThis & { acquireVsCodeApi: () => MockApi })
       .acquireVsCodeApi = () => api;
     await import("../src/webview");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("renders columns and cards from kanban:state message", () => {
@@ -183,6 +197,106 @@ describe("webview ui", () => {
     expect(document.querySelectorAll(".card")).toHaveLength(1);
     expect(document.querySelector(".card h3")?.textContent).toBe("Task A");
     expect(document.querySelector(".card .due")?.textContent).toContain("Due: None");
+  });
+
+  it.each([
+    ["card", ".card"],
+    ["column", ".column-handle"],
+  ])("auto-scrolls the board while dragging a %s near the viewport edge", (_, selector) => {
+    const state = {
+      ...baseState,
+      order: { todo: ["card-1"] },
+      cards: {
+        "card-1": {
+          id: "card-1",
+          title: "Task A",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+      },
+    };
+    renderState(state);
+
+    const board = document.getElementById("board") as HTMLElement;
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 100,
+      top: 100,
+      right: window.innerWidth,
+      bottom: 700,
+      left: 0,
+      width: window.innerWidth,
+      height: 600,
+      toJSON: () => ({}),
+    });
+    document.querySelector<HTMLElement>(selector)?.dispatchEvent(
+      new Event("dragstart", { bubbles: true })
+    );
+    board.dispatchEvent(
+      new MouseEvent("dragover", {
+        bubbles: true,
+        clientX: window.innerWidth - 10,
+        clientY: 300,
+      })
+    );
+
+    animationFrameCallback?.(0);
+
+    expect(board.scrollLeft).toBe(18);
+  });
+
+  it("stops board auto-scroll when the pointer leaves the board", () => {
+    const state = {
+      ...baseState,
+      order: { todo: ["card-1"] },
+      cards: {
+        "card-1": {
+          id: "card-1",
+          title: "Task A",
+          detail: "",
+          parentId: null,
+          due: null,
+          labels: [],
+          checklist: [],
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+      },
+    };
+    renderState(state);
+
+    const board = document.getElementById("board") as HTMLElement;
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 100,
+      top: 100,
+      right: window.innerWidth,
+      bottom: 700,
+      left: 0,
+      width: window.innerWidth,
+      height: 600,
+      toJSON: () => ({}),
+    });
+    document.querySelector<HTMLElement>(".card")?.dispatchEvent(
+      new Event("dragstart", { bubbles: true })
+    );
+    board.dispatchEvent(
+      new MouseEvent("dragover", {
+        bubbles: true,
+        clientX: window.innerWidth - 10,
+        clientY: 300,
+      })
+    );
+    board.dispatchEvent(new MouseEvent("dragleave", { bubbles: true }));
+
+    animationFrameCallback?.(0);
+
+    expect(board.scrollLeft).toBe(0);
   });
 
   it("confirms before clearing all cards from a column", () => {

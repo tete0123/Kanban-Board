@@ -172,20 +172,25 @@ const requestAutoScroll = (x: number, y: number) => {
       return;
     }
     const { x: pointerX, y: pointerY } = lastPointer;
+    const boardRect = board.getBoundingClientRect();
+    if (
+      pointerY < boardRect.top ||
+      pointerY > boardRect.bottom ||
+      pointerX < boardRect.left ||
+      pointerX > boardRect.right
+    ) {
+      autoScrollRaf = null;
+      lastPointer = null;
+      return;
+    }
     let deltaX = 0;
-    let deltaY = 0;
     if (pointerX < AUTO_SCROLL_MARGIN) {
       deltaX = -AUTO_SCROLL_SPEED;
     } else if (pointerX > window.innerWidth - AUTO_SCROLL_MARGIN) {
       deltaX = AUTO_SCROLL_SPEED;
     }
-    if (pointerY < AUTO_SCROLL_MARGIN) {
-      deltaY = -AUTO_SCROLL_SPEED;
-    } else if (pointerY > window.innerHeight - AUTO_SCROLL_MARGIN) {
-      deltaY = AUTO_SCROLL_SPEED;
-    }
-    if (deltaX !== 0 || deltaY !== 0) {
-      window.scrollBy(deltaX, deltaY);
+    if (deltaX !== 0) {
+      board.scrollLeft += deltaX;
     }
     autoScrollRaf = requestAnimationFrame(step);
   };
@@ -876,11 +881,14 @@ openLabelManager.addEventListener("click", () => {
 });
 
 board.addEventListener("dragover", (event) => {
-  if (!draggingColumnId) {
+  if (!draggingCardId && !draggingColumnId) {
     return;
   }
   event.preventDefault();
   requestAutoScroll(event.clientX, event.clientY);
+  if (!draggingColumnId) {
+    return;
+  }
   const after = getColumnAfterElement(board, event.clientX);
   const dragged = document.querySelector<HTMLElement>(".column.dragging");
   if (dragged) {
@@ -890,6 +898,14 @@ board.addEventListener("dragover", (event) => {
       board.appendChild(dragged);
     }
   }
+});
+
+board.addEventListener("dragleave", (event) => {
+  const nextTarget = event.relatedTarget;
+  if (nextTarget instanceof Node && board.contains(nextTarget)) {
+    return;
+  }
+  stopAutoScroll();
 });
 
 board.addEventListener("drop", () => {

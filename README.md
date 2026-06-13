@@ -11,9 +11,9 @@ stored in your workspace and can be versioned with your project.
 
 ## Features
 
-- Create, rename, reorder, and delete columns (drag the handle to reorder).
+- Create, rename, reorder, and delete columns (drag the handle to reorder, with horizontal auto-scroll near the webview edges).
 - Clear all cards from a column while keeping the column, with optional Markdown export before deletion.
-- Create, edit (double click), delete, and move cards with drag and drop.
+- Create, edit (double click), delete, and move cards with drag and drop, including horizontal auto-scroll to reach off-screen columns.
 - Display columns in a horizontal row with side scrolling, while long card text wraps within each column.
 - Set optional due dates on cards.
 - Add checklist items to cards and track completion progress on the board.
